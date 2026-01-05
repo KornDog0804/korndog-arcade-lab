@@ -1,10 +1,18 @@
+// ===============================
+// KornDog Arcade — Vinyl Blaster
+// Full copy/paste game.js
+// ===============================
+
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
 const scoreEl = document.getElementById("score");
 const livesEl = document.getElementById("lives");
 const waveEl = document.getElementById("wave");
-document.getElementById("btnRestart").addEventListener("click", () => reset(true));
+const btnRestart = document.getElementById("btnRestart");
+const btnMusic = document.getElementById("btnMusic"); // optional (add in HTML if you want)
+
+if (btnRestart) btnRestart.addEventListener("click", () => reset(true));
 
 const W = c.width, H = c.height;
 
@@ -16,6 +24,132 @@ let wave = 1;
 let last = 0;
 let cooldown = 0;
 
+// -------------------- AUDIO (ORIGINAL 8-BIT) --------------------
+let audioCtx = null;
+let musicOn = false;
+let musicTimer = null;
+
+function ensureAudio() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  if (!audioCtx) audioCtx = new Ctx();
+  // some browsers start suspended until user gesture
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+function midiToFreq(m) {
+  return 440 * Math.pow(2, (m - 69) / 12);
+}
+
+function playTone({ type = "square", freq = 440, dur = 0.12, vol = 0.08, when = 0, lp = 8000 }) {
+  const ac = ensureAudio();
+  if (!ac) return;
+
+  const t0 = ac.currentTime + when;
+
+  const osc = ac.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+
+  const gain = ac.createGain();
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  const filter = ac.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(lp, t0);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ac.destination);
+
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+// SFX
+function sfxShoot() {
+  // quick zappy pew
+  playTone({ type: "square", freq: 880, dur: 0.06, vol: 0.05, lp: 6500 });
+  playTone({ type: "square", freq: 660, dur: 0.07, vol: 0.04, when: 0.01, lp: 6500 });
+}
+
+function sfxHit() {
+  // tiny “tick” + noise-ish burst feel
+  playTone({ type: "triangle", freq: 240, dur: 0.05, vol: 0.06, lp: 4000 });
+  playTone({ type: "square", freq: 120, dur: 0.06, vol: 0.035, when: 0.01, lp: 2800 });
+}
+
+function sfxExplosion() {
+  // punchy thump
+  playTone({ type: "sine", freq: 140, dur: 0.10, vol: 0.09, lp: 2200 });
+  playTone({ type: "sine", freq: 80, dur: 0.12, vol: 0.07, when: 0.02, lp: 1800 });
+}
+
+// Music loop (original)
+function startMusic() {
+  if (musicTimer) return;
+
+  const bpm = 120;
+  const stepDur = 60 / bpm / 4; // 16ths
+  let step = 0;
+
+  // ORIGINAL patterns (no copyrighted melodies)
+  const lead = [
+    76, null, 79, null, 81, null, 79, null,
+    76, null, 74, null, 72, null, 74, null
+  ];
+  const bass = [
+    40, null, null, null, 40, null, null, null,
+    43, null, null, null, 43, null, null, null
+  ];
+  const arp = [
+    64, 67, 71, 67,
+    64, 67, 71, 67,
+    62, 66, 69, 66,
+    62, 66, 69, 66
+  ];
+
+  musicTimer = setInterval(() => {
+    if (!musicOn) return;
+
+    const ln = lead[step % lead.length];
+    if (ln != null) {
+      playTone({ type: "square", freq: midiToFreq(ln), dur: stepDur * 1.5, vol: 0.045, lp: 7200 });
+    }
+
+    const bn = bass[step % bass.length];
+    if (bn != null) {
+      playTone({ type: "square", freq: midiToFreq(bn), dur: stepDur * 2.6, vol: 0.055, lp: 2600 });
+    }
+
+    const an = arp[step % arp.length];
+    playTone({ type: "triangle", freq: midiToFreq(an), dur: stepDur * 0.65, vol: 0.022, lp: 6200 });
+
+    step++;
+  }, stepDur * 1000);
+}
+
+function stopMusic() {
+  if (musicTimer) clearInterval(musicTimer);
+  musicTimer = null;
+}
+
+function toggleMusic(force) {
+  ensureAudio();
+  musicOn = typeof force === "boolean" ? force : !musicOn;
+  if (musicOn) startMusic();
+  else stopMusic();
+
+  if (btnMusic) btnMusic.textContent = musicOn ? "⏸ Music" : "▶ Music";
+}
+
+// If there is a music button, hook it
+if (btnMusic) btnMusic.addEventListener("click", () => toggleMusic());
+
+// -------------------- GAME STATE --------------------
 const player = {
   x: W / 2,
   y: H - 54,
@@ -79,17 +213,22 @@ function reset(hard = false) {
 }
 
 function syncHUD() {
-  scoreEl.textContent = String(score);
-  livesEl.textContent = String(lives);
-  waveEl.textContent = String(wave);
+  if (scoreEl) scoreEl.textContent = String(score);
+  if (livesEl) livesEl.textContent = String(lives);
+  if (waveEl) waveEl.textContent = String(wave);
 }
 
 function fire() {
   if (cooldown > 0) return;
   cooldown = 0.18;
+
   bullets.push({ x: player.x, y: player.y - 18, vy: -420, r: 4 });
+
+  // SFX: only after user has interacted at least once
+  sfxShoot();
 }
 
+// -------------------- UPDATE --------------------
 function step(dt) {
   // input
   const left = keys.has("ArrowLeft") || keys.has("a");
@@ -118,8 +257,9 @@ function step(dt) {
       e.x = rand(24, W - 24);
       lives -= 1;
       pop(player.x, player.y, 16);
+      sfxExplosion();
+
       if (lives <= 0) {
-        // game over -> hard reset
         reset(true);
         return;
       }
@@ -137,6 +277,7 @@ function step(dt) {
         b.y = -999;
         e.hp -= 1;
         pop(e.x, e.y, 8);
+        sfxHit();
 
         if (e.hp <= 0) {
           score += 10 * wave;
@@ -144,6 +285,7 @@ function step(dt) {
           e.x = rand(24, W - 24);
           e.hp = 1 + Math.floor(wave / 3);
           syncHUD();
+          sfxExplosion();
         }
       }
     }
@@ -164,9 +306,11 @@ function step(dt) {
     spawnWave(7 + wave);
     syncHUD();
     pop(W / 2, H / 3, 30);
+    sfxExplosion();
   }
 }
 
+// -------------------- DRAW --------------------
 function draw() {
   ctx.clearRect(0, 0, W, H);
 
@@ -220,13 +364,14 @@ function draw() {
   ctx.globalAlpha = 1;
 
   // subtle vignette
-  const g = ctx.createRadialGradient(W/2, H/2, 50, W/2, H/2, 340);
+  const g = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, 340);
   g.addColorStop(0, "rgba(0,0,0,0)");
   g.addColorStop(1, "rgba(0,0,0,.35)");
   ctx.fillStyle = g;
-  ctx.fillRect(0,0,W,H);
+  ctx.fillRect(0, 0, W, H);
 }
 
+// -------------------- LOOP --------------------
 function loop(t) {
   const dt = Math.min(0.033, (t - last) / 1000);
   last = t;
@@ -235,16 +380,23 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 
-// keyboard
+// -------------------- INPUT --------------------
 window.addEventListener("keydown", (e) => {
+  // IMPORTANT: first user gesture can start audio
+  ensureAudio();
+
   if (e.key === " ") { e.preventDefault(); fire(); return; }
   if (e.key.toLowerCase() === "r") { reset(true); return; }
+  if (e.key.toLowerCase() === "m") { toggleMusic(); return; } // press M for music
   keys.add(e.key);
 });
+
 window.addEventListener("keyup", (e) => keys.delete(e.key));
 
 // mobile: tap left/right + tap top half to shoot
 c.addEventListener("pointerdown", (e) => {
+  ensureAudio(); // user gesture => unlock audio on mobile
+
   const rect = c.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
@@ -256,14 +408,20 @@ c.addEventListener("pointerdown", (e) => {
   if (x < rect.width * 0.5) keys.add("ArrowLeft");
   else keys.add("ArrowRight");
 });
+
 c.addEventListener("pointerup", () => {
   keys.delete("ArrowLeft");
   keys.delete("ArrowRight");
 });
+
 c.addEventListener("pointercancel", () => {
   keys.delete("ArrowLeft");
   keys.delete("ArrowRight");
 });
 
+// -------------------- START --------------------
 reset(true);
 requestAnimationFrame(loop);
+
+// Optional: start music automatically AFTER first click if you want.
+// Right now: user hits M or the Music button.
