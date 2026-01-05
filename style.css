@@ -270,3 +270,149 @@ body {
   image-rendering: pixelated;
 }
 /* ---------------------- */
+/* =========================================
+   KORNDOG ARCADE LAB — STYLE NUKE
+   (replaces all previous CSS)
+   ========================================= */
+
+:root{
+  --bg1:#2a145c;
+  --bg2:#05030a;
+
+  --panel: rgba(12, 10, 22, 0.72);
+  --panel2: rgba(18, 16, 32, 0.78);
+  --stroke: rgba(255,255,255,0.08);
+  --glow: rgba(140, 110, 255, 0.35);
+
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.70);
+}
+
+*{ box-sizing: border-box; }
+
+html, body{
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: radial-gradient(ellipse at top, var(--bg1), var(--bg2));
+  color: var(--text);
+  overflow: hidden;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: none;
+}
+
+/* If your HTML has a main wrapper, this keeps everything centered */
+#app, .app, .container{
+  width: 100%;
+  height: 100%;
+}
+
+/* =========================
+   HUD / TOP BAR (generic)
+   ========================= */
+.hud, #hud, .topbar, .top-bar{
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--panel), var(--panel2));
+  border: 1px solid var(--stroke);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.03) inset;
+  backdrop-filter: blur(10px);
+}
+
+/* =========================
+   GAME AREA (canvas holder)
+   ========================= */
+.wrap, .game-wrap, #gameWrap, #wrap{
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 210px); /* leaves room for HUD + controls text */
+  margin-top: 90px;           /* pushes down under HUD */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+/* Make canvas crisp + BIG (this fixes the shrinking) */
+canvas, #game, #canvas, .game-canvas{
+  display: block;
+  width: min(96vw, 980px) !important; /* force big */
+  height: auto !important;
+
+  /* THE MONEY MAKER: forced visual zoom */
+  transform: scale(1.55) !important;
+  transform-origin: center center !important;
+
+  /* Keep pixels sharp */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+
+  border-radius: 24px;
+  border: 1px solid var(--stroke);
+  box-shadow:
+    0 18px 50px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(255,255,255,0.03) inset,
+    0 0 40px var(--glow);
+}
+
+/* Mobile: make it even bigger */
+@media (max-width: 600px){
+  .wrap, .game-wrap, #gameWrap, #wrap{
+    height: calc(100vh - 200px);
+    margin-top: 86px;
+  }
+
+  canvas, #game, #canvas, .game-canvas{
+    width: 96vw !important;
+    transform: scale(1.85) !important;
+  }
+}
+
+/* =========================
+   Bottom help text / controls bubble
+   ========================= */
+.hint, #hint, .controls, .controls-hint, .bottom-hint{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 20;
+
+  width: min(92vw, 520px);
+  padding: 14px 16px;
+  text-align: center;
+
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--panel), var(--panel2));
+  border: 1px solid var(--stroke);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+/* If your joystick UI exists, keep it from covering everything */
+#joystick, .joystick, .stick{
+  position: fixed;
+  left: 18px;
+  bottom: 110px;
+  z-index: 30;
+  opacity: 0.85;
+}
+
+/* Disable selecting/scrolling weirdness */
+button, a, .btn{
+  -webkit-tap-highlight-color: transparent;
+}
