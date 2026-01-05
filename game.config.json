@@ -1,0 +1,33 @@
+{
+  "virtualWidth": 320,
+  "virtualHeight": 192,
+  "tileSize": 16,
+
+  "player": {
+    "speed": 92,
+    "radius": 6,
+    "carryMax": 6
+  },
+
+  "economy": {
+    "saleMin": 18,
+    "saleMax": 38,
+    "xpNeedStart": 10
+  },
+
+  "spawning": {
+    "minSeconds": 1.2,
+    "maxSeconds": 2.2,
+    "maxQueue": 3
+  },
+
+  "autoInteract": {
+    "enabled": true,
+    "cooldownSeconds": 0.25
+  },
+
+  "controls": {
+    "touchFollow": true,
+    "touchDeadzonePx": 3
+  }
+}
