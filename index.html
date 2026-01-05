@@ -2,8 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>KornDog Record Store</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>KornDog Record Store — Retro</title>
     <link rel="stylesheet" href="style.css" />
   </head>
 
@@ -16,7 +19,7 @@
         <div class="star" aria-hidden="true">⭐</div>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="fill" id="xpFill"></div>
-          <div class="txt" id="xpText">0/5</div>
+          <div class="txt" id="xpText">0/10</div>
         </div>
       </div>
 
@@ -26,27 +29,19 @@
       </div>
     </div>
 
-    <!-- Big green action bubble -->
-    <div class="actionBubble" id="actionBubble" aria-hidden="true">
-      <div class="actionIcon" id="actionIcon">💿</div>
-      <div class="actionText" id="actionText">Pick up records</div>
+    <!-- Task -->
+    <div class="task" aria-label="Task prompt">
+      <div class="taskIcon" id="taskIcon" aria-hidden="true">📦</div>
+      <div class="taskText" id="taskText">Pick up records</div>
     </div>
 
-    <!-- Big arrow helper -->
-    <div class="bigArrow" id="bigArrow" aria-hidden="true">⬇</div>
-
-    <!-- Canvas -->
+    <!-- Game wrap -->
     <div class="wrap">
-      <canvas id="game" aria-label="KornDog Record Store canvas"></canvas>
+      <canvas id="game" aria-label="KornDog Record Store game"></canvas>
     </div>
 
-    <!-- Infinity / tap-to-walk tutorial -->
-    <div class="infinityHelp" id="infinityHelp" aria-hidden="false">
-      <div class="infIcon">∞</div>
-      <div class="infHand">☝️</div>
-    </div>
-
-    <!-- Toast -->
+    <!-- Bottom hint + toast -->
+    <div class="hint" id="hint">Drag your finger to walk • WASD/Arrows • Shield controller works too</div>
     <div class="toast" id="toast" aria-live="polite"></div>
 
     <!-- Settings panel -->
@@ -68,11 +63,11 @@
         </div>
 
         <div class="panelNote">
-          Tap anywhere to walk. Walk into stations to auto-interact.
+          Walk up to stations to auto-interact. Customers grab from shelves, then queue at register.
         </div>
       </div>
     </div>
 
-    <script type="module" src="game.js"></script>
+    <script src="game.js"></script>
   </body>
 </html>
