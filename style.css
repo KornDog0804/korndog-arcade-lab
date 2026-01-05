@@ -175,3 +175,74 @@ canvas{
 #btnSettings, #btnMusic, #btnRestart, button, a{
   pointer-events:auto;
 }
+/* ===============================
+   CLICK FIX PACK (put at bottom)
+   =============================== */
+
+/* If you use overlays for glow/gradients, they MUST not eat taps */
+.wrap::before,
+.wrap::after,
+.stage::before,
+.stage::after {
+  pointer-events: none !important;
+}
+
+/* Make sure the UI header is above the game */
+.top {
+  position: sticky; /* or relative, sticky is nice on mobile */
+  top: 0;
+  z-index: 50;
+  pointer-events: auto;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* HUD and any buttons inside must be clickable */
+.hud,
+.brand,
+.actions,
+.btn,
+#btnRestart,
+#btnMusic,
+#btnHelp,
+#btnSettings {
+  position: relative;
+  z-index: 60;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+/* Make sure the game area doesn't cover the header */
+.stage {
+  position: relative;
+  z-index: 1;
+}
+
+/* If your canvas is positioned absolute/fixed, it might cover everything */
+#game {
+  position: relative;
+  z-index: 1;
+  touch-action: none; /* keeps drag control smooth */
+}
+
+/* If you have a big background layer, keep it behind */
+.bg,
+.background,
+.vignette,
+.glow-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Optional: if you made a fullscreen overlay for style, THIS is the usual villain */
+.overlay,
+.screen-overlay,
+.ui-overlay {
+  pointer-events: none !important;
+}
+
+/* iPhone bottom safe-area (keeps controls from sitting under the bar) */
+.help {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
