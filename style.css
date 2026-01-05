@@ -159,3 +159,19 @@ canvas{
   pointer-events:none;
 }
 .toast.show{ opacity:1; }
+/* Fix mobile taps: let the canvas receive touches */
+#game{
+  touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+/* UI should not block canvas, BUT clickable controls must still work */
+.top, .hud, .task, .toast, header, footer{
+  pointer-events:none;
+}
+
+/* Re-enable clicks for specific controls */
+#btnSettings, #btnMusic, #btnRestart, button, a{
+  pointer-events:auto;
+}
