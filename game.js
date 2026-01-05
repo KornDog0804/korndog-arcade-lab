@@ -12,6 +12,7 @@ const actionBubble = document.getElementById("actionBubble");
 const actionIcon = document.getElementById("actionIcon");
 const actionText = document.getElementById("actionText");
 const bigArrow = document.getElementById("bigArrow");
+const infinityHelp = document.getElementById("infinityHelp");
 
 // Settings
 const btnSettings = document.getElementById("btnSettings");
@@ -19,10 +20,6 @@ const btnCloseSettings = document.getElementById("btnCloseSettings");
 const settingsPanel = document.getElementById("settingsPanel");
 const btnMusic = document.getElementById("btnMusic");
 const btnRestart = document.getElementById("btnRestart");
-
-// Joystick
-const joyBase = document.getElementById("joyBase");
-const joyKnob = document.getElementById("joyKnob");
 
 // Helpers
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
@@ -117,14 +114,12 @@ const state = {
 };
 
 const totalShelfStock = ()=>state.shelves.reduce((a,s)=>a+s.stock,0);
-
 function syncHUD(){
   cashEl.textContent = `$${state.cash}`;
   const pct = clamp((state.xp/state.xpNeed)*100,0,100);
   xpFill.style.width = `${pct}%`;
   xpText.textContent = `${state.xp}/${state.xpNeed}`;
 }
-
 function gainXP(n){
   state.xp += n;
   if(state.xp >= state.xpNeed){
@@ -139,7 +134,7 @@ function gainXP(n){
   syncHUD();
 }
 
-// ---------- Scene (Isometric / Orthographic feel) ----------
+// ---------- Scene ----------
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
 renderer.shadowMap.enabled = true;
@@ -147,15 +142,13 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 
-// Ortho camera = “mobile tycoon look”
+// Ortho camera (tycoon feel)
 const camera = new THREE.OrthographicCamera(-8, 8, 12, -12, 0.1, 200);
-// Isometric-ish angle
 camera.position.set(14, 18, 14);
 camera.lookAt(0, 0, 0);
 
 // Lights
 scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-
 const sun = new THREE.DirectionalLight(0xffffff, 0.85);
 sun.position.set(20, 30, 10);
 sun.castShadow = true;
@@ -166,29 +159,25 @@ sun.shadow.camera.top = 25;
 sun.shadow.camera.bottom = -25;
 scene.add(sun);
 
-// Materials (toon-ish)
-const matFloor = new THREE.MeshLambertMaterial({ color: 0xcfe7ff });
+// Materials
 const matTileA = new THREE.MeshLambertMaterial({ color: 0xdaf0ff });
 const matTileB = new THREE.MeshLambertMaterial({ color: 0xc7e3ff });
-
 const matShelf = new THREE.MeshLambertMaterial({ color: 0xead7c6 });
 const matShelfTop = new THREE.MeshLambertMaterial({ color: 0xf3e6dc });
-
 const matCrate = new THREE.MeshLambertMaterial({ color: 0x57ff93 });
 const matRegister = new THREE.MeshLambertMaterial({ color: 0x7c3cff });
-
 const matPlayer = new THREE.MeshLambertMaterial({ color: 0xff4d4d });
 const matCap = new THREE.MeshLambertMaterial({ color: 0xff2f2f });
-
 const matCustomer = new THREE.MeshLambertMaterial({ color: 0xffffff });
 
-// Floor + tiled pattern (cheap + looks like your screenshots)
+// Floor tiles
 const floorGroup = new THREE.Group();
 scene.add(floorGroup);
 
 const tileSize = 2;
 const tilesX = 8;
 const tilesZ = 10;
+
 for(let x=0; x<tilesX; x++){
   for(let z=0; z<tilesZ; z++){
     const tile = new THREE.Mesh(
@@ -202,7 +191,7 @@ for(let x=0; x<tilesX; x++){
   }
 }
 
-// Walls (top/right edges)
+// Walls
 const wallMat = new THREE.MeshLambertMaterial({ color: 0xf7f7f7 });
 const wall1 = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 22), wallMat);
 wall1.position.set(9.5, 2, 0);
@@ -228,14 +217,11 @@ function box(name,x,y,z,w,h,d,mat){
 const crate = box("crate", -6.5, 0.6, 6.5, 2.2, 1.2, 2.2, matCrate);
 const register = box("register", 6.2, 0.7, 5.2, 3.2, 1.4, 2.2, matRegister);
 
-// Shelves (top row)
 const shelfMeshes = [
   box("shelf0", -6.0, 0.7, -8.6, 4.2, 1.4, 1.6, matShelf),
   box("shelf1",  0.0, 0.7, -8.6, 4.8, 1.4, 1.6, matShelf),
   box("shelf2",  6.0, 0.7, -8.6, 4.2, 1.4, 1.6, matShelf),
 ];
-
-// Shelf tops
 shelfMeshes.forEach(s=>{
   const top = new THREE.Mesh(new THREE.BoxGeometry(s.geometry.parameters.width, 0.25, s.geometry.parameters.depth), matShelfTop);
   top.position.set(s.position.x, s.position.y + 0.85, s.position.z);
@@ -243,11 +229,11 @@ shelfMeshes.forEach(s=>{
   scene.add(top);
 });
 
-// Player (simple dude)
+// Player
 const player = {
   pos: new THREE.Vector3(0,0,2),
   target: null,
-  speed: 7.0,
+  speed: 6.5,
 };
 
 const playerBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 0.8, 6, 12), matPlayer);
@@ -304,7 +290,7 @@ function updateCustomers(dt){
   }
 }
 
-// Stock indicators (little stacks)
+// Shelf “record stacks”
 const stacks = shelfMeshes.map((s,i)=>{
   const g = new THREE.Group();
   g.position.set(s.position.x, s.position.y + 1.05, s.position.z + 0.4);
@@ -317,7 +303,10 @@ function rebuildStacks(){
     while(g.children.length) g.remove(g.children[0]);
     const n = state.shelves[i].stock;
     for(let k=0;k<n;k++){
-      const piece = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.18,16), new THREE.MeshLambertMaterial({ color:0x7c3cff }));
+      const piece = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.28,0.28,0.18,16),
+        new THREE.MeshLambertMaterial({ color:0x7c3cff })
+      );
       piece.position.set((k%4)*0.35 - 0.5, Math.floor(k/4)*0.2, 0);
       piece.castShadow=true;
       g.add(piece);
@@ -326,7 +315,7 @@ function rebuildStacks(){
 }
 
 // Proximity + interactions
-function near(obj, dist=2.0){
+function near(obj, dist=2.05){
   const dx = player.pos.x - obj.position.x;
   const dz = player.pos.z - obj.position.z;
   return (dx*dx + dz*dz) <= dist*dist;
@@ -340,7 +329,6 @@ function interactCrate(){
   gainXP(1);
   toast(`Picked up ${take} record${take>1?"s":""}`);
 }
-
 function interactShelf(idx){
   if(state.carry <= 0){ toast("No records to stock."); return; }
   const shelf = state.shelves[idx];
@@ -354,14 +342,12 @@ function interactShelf(idx){
   rebuildStacks();
   toast(`Stocked +${put}`);
 }
-
 function takeFromAnyShelf(){
   for(const s of state.shelves){
     if(s.stock>0){ s.stock -= 1; return true; }
   }
   return false;
 }
-
 function interactRegister(){
   if(state.customers.length === 0){ toast("No customers."); return; }
   if(!takeFromAnyShelf()){ toast("Out of stock."); return; }
@@ -379,6 +365,46 @@ function interactRegister(){
   toast(`+$${pay}`);
 }
 
+// ---------- AUTO-INTERACT (walk into zone) ----------
+let autoCooldown = 0;
+function autoInteract(dt){
+  autoCooldown -= dt;
+  if(autoCooldown > 0) return;
+
+  // Priority: register (if customers), shelf (if carrying), crate (if empty)
+  if(near(register) && state.customers.length > 0){
+    interactRegister();
+    autoCooldown = 0.35;
+    return;
+  }
+
+  // If carrying, stock nearest shelf with space
+  if(state.carry > 0){
+    let best = -1;
+    let bestD = 999;
+    for(let i=0;i<shelfMeshes.length;i++){
+      const s = shelfMeshes[i];
+      const hasSpace = state.shelves[i].stock < state.shelves[i].cap;
+      if(!hasSpace) continue;
+      const dx = player.pos.x - s.position.x;
+      const dz = player.pos.z - s.position.z;
+      const d = dx*dx + dz*dz;
+      if(d < bestD){ bestD = d; best = i; }
+    }
+    if(best !== -1 && near(shelfMeshes[best], 2.1)){
+      interactShelf(best);
+      autoCooldown = 0.35;
+      return;
+    }
+  }
+
+  // If empty AND shelves empty, crate
+  if(state.carry === 0 && totalShelfStock() === 0 && near(crate)){
+    interactCrate();
+    autoCooldown = 0.35;
+  }
+}
+
 // ---------- Big UI bubble + arrow logic ----------
 function showAction(icon, text){
   actionIcon.textContent = icon;
@@ -387,26 +413,49 @@ function showAction(icon, text){
 }
 function hideAction(){ actionBubble.classList.remove("show"); }
 
+// Make arrow point to target station in screen-space
+function pointArrowTo(obj){
+  const v = obj.position.clone();
+  v.y += 1.2;
+  v.project(camera);
+
+  const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
+
+  bigArrow.style.left = `${Math.round(x)}px`;
+  bigArrow.style.top = `${Math.round(y - 70)}px`;
+  bigArrow.classList.add("show");
+}
+
 function updateGuides(){
-  // if player needs to pick up
-  if(state.carry === 0 && totalShelfStock() === 0){
-    showAction("💿", "Pick up records");
-    bigArrow.classList.add("show");
-    return;
-  }
+  // Hide infinity help once player moved once
+  if(playerHasMoved && infinityHelp) infinityHelp.style.display = "none";
 
-  // if needs stock
   const anySpace = state.shelves.some((s)=>s.stock < s.cap);
-  if(state.carry > 0 && anySpace){
-    showAction("📚", "Put record on shelf");
-    bigArrow.classList.add("show");
+
+  if(state.carry === 0 && totalShelfStock() === 0){
+    showAction("💿","Pick up records");
+    pointArrowTo(crate);
     return;
   }
 
-  // if customers waiting
+  if(state.carry > 0 && anySpace){
+    showAction("📚","Put record on shelf");
+    // point to nearest shelf
+    let best = shelfMeshes[0], bestD = 999;
+    for(const s of shelfMeshes){
+      const dx = player.pos.x - s.position.x;
+      const dz = player.pos.z - s.position.z;
+      const d = dx*dx + dz*dz;
+      if(d<bestD){ bestD=d; best=s; }
+    }
+    pointArrowTo(best);
+    return;
+  }
+
   if(state.customers.length > 0){
-    showAction("🧾", "Check out customers");
-    bigArrow.classList.add("show");
+    showAction("🧾","Check out customers");
+    pointArrowTo(register);
     return;
   }
 
@@ -414,47 +463,14 @@ function updateGuides(){
   bigArrow.classList.remove("show");
 }
 
-// ---------- Movement (keyboard + joystick + tap to move) ----------
+// ---------- Movement (Infinity / tap anywhere to walk) ----------
 const keys = new Set();
-window.addEventListener("keydown",(e)=>{ ensureAudio(); keys.add(e.key.toLowerCase()); if(e.key.toLowerCase()==="m") toggleMusic(); });
+window.addEventListener("keydown",(e)=>{ ensureAudio(); keys.add(e.key.toLowerCase()); });
 window.addEventListener("keyup",(e)=>keys.delete(e.key.toLowerCase()));
 
-let joyVec = {x:0,y:0};
-let joyDown = false;
-let joyStart = {x:0,y:0};
-
-if(joyBase){
-  joyBase.addEventListener("pointerdown",(e)=>{
-    ensureAudio();
-    joyDown = true;
-    joyBase.setPointerCapture(e.pointerId);
-    joyStart = {x:e.clientX, y:e.clientY};
-  });
-  joyBase.addEventListener("pointermove",(e)=>{
-    if(!joyDown) return;
-    const dx = e.clientX - joyStart.x;
-    const dy = e.clientY - joyStart.y;
-    const max = 34;
-    const nx = clamp(dx / max, -1, 1);
-    const ny = clamp(dy / max, -1, 1);
-    joyVec = {x:nx, y:ny};
-    joyKnob.style.transform = `translate(${nx*34}px, ${ny*34}px)`;
-  });
-  joyBase.addEventListener("pointerup",()=>{
-    joyDown = false;
-    joyVec = {x:0,y:0};
-    joyKnob.style.transform = `translate(0px,0px)`;
-  });
-  joyBase.addEventListener("pointercancel",()=>{
-    joyDown = false;
-    joyVec = {x:0,y:0};
-    joyKnob.style.transform = `translate(0px,0px)`;
-  });
-}
-
-// Raycast for taps
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
+
 function setPointer(e){
   const r = canvas.getBoundingClientRect();
   pointer.x = ((e.clientX - r.left)/r.width)*2-1;
@@ -465,46 +481,31 @@ function raycast(objs){
   return raycaster.intersectObjects(objs, true);
 }
 
-// For click-to-move, we just map screen click into world approx by raycasting tiles
+// IMPORTANT: floor tiles only for walking raycast
 const floorTiles = floorGroup.children;
 
+// tap-to-walk
+let playerHasMoved = false;
 canvas.addEventListener("pointerdown",(e)=>{
   ensureAudio();
   setPointer(e);
 
-  // Stations first
-  const hits = raycast([crate, register, ...shelfMeshes, ...floorTiles]);
+  // Walk target from floor hit (ONLY floor tiles)
+  const hits = raycast(floorTiles);
   if(!hits.length) return;
 
-  const obj = hits[0].object;
-  const name = obj.name || obj.parent?.name || "";
-
-  if(name==="crate"){ near(crate) ? interactCrate() : toast("Walk to crate"); return; }
-  if(name==="register"){ near(register) ? interactRegister() : toast("Walk to register"); return; }
-  if(name.startsWith("shelf")){
-    const idx = parseInt(name.replace("shelf",""),10);
-    if(Number.isFinite(idx)){
-      near(shelfMeshes[idx]) ? interactShelf(idx) : toast("Walk to shelf");
-      return;
-    }
-  }
-
-  // Tap-to-walk on floor
-  const floorHit = hits.find(h=>h.object.name==="floor");
-  if(floorHit){
-    player.target = new THREE.Vector3(
-      clamp(floorHit.point.x, -8.5, 8.5),
-      0,
-      clamp(floorHit.point.z, -10.5, 10.5)
-    );
-  }
+  const hit = hits[0];
+  player.target = new THREE.Vector3(
+    clamp(hit.point.x, -8.5, 8.5),
+    0,
+    clamp(hit.point.z, -10.5, 10.5)
+  );
 });
 
-// Update player position
 function updatePlayer(dt){
   let vx=0, vz=0;
 
-  // Keyboard
+  // keyboard still works
   const left = keys.has("arrowleft") || keys.has("a");
   const right= keys.has("arrowright")|| keys.has("d");
   const up   = keys.has("arrowup")   || keys.has("w");
@@ -515,25 +516,23 @@ function updatePlayer(dt){
   if(up)   vz -= 1;
   if(down) vz += 1;
 
-  // Joystick overrides/adds
-  vx += joyVec.x;
-  vz += joyVec.y;
+  const usingKeys = (Math.hypot(vx,vz) > 0.05);
 
-  const usingDirect = (Math.hypot(vx,vz) > 0.05);
-
-  if(usingDirect){
+  if(usingKeys){
     const len = Math.hypot(vx,vz)||1;
     vx/=len; vz/=len;
     player.pos.x += vx * player.speed * dt;
     player.pos.z += vz * player.speed * dt;
     player.target = null;
+    playerHasMoved = true;
   } else if(player.target){
     const dx = player.target.x - player.pos.x;
     const dz = player.target.z - player.pos.z;
     const d = Math.hypot(dx,dz);
     if(d > 0.08){
-      player.pos.x += (dx/d) * (player.speed*0.85) * dt;
-      player.pos.z += (dz/d) * (player.speed*0.85) * dt;
+      player.pos.x += (dx/d) * player.speed * dt;
+      player.pos.z += (dz/d) * player.speed * dt;
+      playerHasMoved = true;
     }
   }
 
@@ -551,7 +550,6 @@ function resize(){
   const h = Math.max(2, Math.floor(rect.height));
   renderer.setSize(w,h,false);
 
-  // Adjust ortho based on aspect for stable “mobile tycoon view”
   const aspect = w/h;
   const zoom = 10.5;
   camera.left = -zoom*aspect;
@@ -567,6 +565,7 @@ resize();
 function reset(){
   state.cash=0; state.xp=0; state.xpNeed=5;
   state.carry=0; state.carryMax=4;
+
   state.shelves[0].stock=0;
   state.shelves[1].stock=0;
   state.shelves[2].stock=0;
@@ -580,6 +579,9 @@ function reset(){
 
   player.pos.set(0,0,2);
   player.target = null;
+
+  playerHasMoved = false;
+  if(infinityHelp) infinityHelp.style.display = "flex";
 
   rebuildStacks();
   syncHUD();
@@ -600,6 +602,7 @@ function animate(t){
 
   updatePlayer(dt);
   updateCustomers(dt);
+  autoInteract(dt);
   updateGuides();
   syncHUD();
 
