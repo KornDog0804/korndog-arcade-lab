@@ -24,16 +24,21 @@ body{
   overflow:hidden;
 }
 
-/* HUD top */
+/* ===============================
+   HUD TOP (clickable)
+   =============================== */
 .hud{
   position:fixed;
   left:14px; right:14px; top:14px;
   display:flex;
   align-items:center;
   gap:10px;
-  z-index: 10;
+  z-index: 100;               /* must sit above canvas */
+  pointer-events:auto;        /* allow clicks */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* Buttons like settings/music */
 .icon-btn{
   width:46px; height:46px;
   border-radius: 14px;
@@ -42,8 +47,13 @@ body{
   box-shadow: var(--shadow);
   color:var(--text);
   font-size:18px;
+  display:grid;
+  place-items:center;
+  pointer-events:auto;
+  touch-action: manipulation;
 }
 
+/* XP / progress */
 .xp{
   flex:1;
   display:flex;
@@ -54,8 +64,10 @@ body{
   border:1px solid var(--stroke);
   background: var(--glass);
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 .star{ font-size:18px; }
+
 .bar{
   position:relative;
   flex:1;
@@ -64,6 +76,7 @@ body{
   border:1px solid rgba(255,255,255,.14);
   background: rgba(0,0,0,.25);
   overflow:hidden;
+  min-width: 0;
 }
 .fill{
   position:absolute; inset:0;
@@ -76,8 +89,10 @@ body{
   font-weight:900;
   font-size:12px;
   text-shadow: 0 2px 10px rgba(0,0,0,.5);
+  pointer-events:none;
 }
 
+/* Cash pill */
 .cash{
   display:flex; align-items:center; gap:10px;
   padding:10px 12px;
@@ -91,7 +106,9 @@ body{
 .bill{ font-size:18px; }
 .amt{ font-weight: 950; }
 
-/* task bar */
+/* ===============================
+   TASK BAR (clickable if you want)
+   =============================== */
 .task{
   position:fixed;
   left:50%; top:82px;
@@ -104,20 +121,29 @@ body{
   border:1px solid rgba(255,255,255,.16);
   background: rgba(87,255,147,.18);
   box-shadow: var(--shadow);
-  z-index: 10;
+  z-index: 90;
+  pointer-events:auto;
 }
 .taskIcon{ font-size:18px; }
 .taskText{ font-weight: 950; letter-spacing:.2px; }
 
+/* ===============================
+   LAYOUT
+   =============================== */
 .wrap{
   height:100%;
   display:flex;
   align-items:center;
   justify-content:center;
-  padding-top: 120px;
+  padding-top: 120px; /* leaves room for HUD + task */
+  position: relative;
 }
 
-canvas{
+/* ===============================
+   CANVAS
+   =============================== */
+canvas,
+#game{
   width:min(92vw, 420px);
   height: min(78vh, 760px);
   border-radius: 26px;
@@ -127,9 +153,16 @@ canvas{
     radial-gradient(700px 380px at 80% 70%, rgba(87,255,147,.10), transparent 60%),
     rgba(0,0,0,.20);
   box-shadow: var(--shadow);
-  touch-action:none;
+  touch-action:none;          /* keep drag smooth */
+  -webkit-user-select:none;
+  user-select:none;
+  position: relative;
+  z-index: 1;                 /* canvas under HUD */
 }
 
+/* ===============================
+   BOTTOM HINT
+   =============================== */
 .hint{
   position:fixed;
   left:50%;
@@ -141,8 +174,14 @@ canvas{
   background: rgba(0,0,0,.22);
   color: var(--muted);
   font-size: 12px;
+  z-index: 80;
+  pointer-events:none; /* hint should NOT block taps */
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
 
+/* ===============================
+   TOAST (never blocks taps)
+   =============================== */
 .toast{
   position:fixed;
   left:50%;
@@ -157,92 +196,28 @@ canvas{
   opacity:0;
   transition: .2s ease;
   pointer-events:none;
+  z-index: 85;
 }
 .toast.show{ opacity:1; }
-/* Fix mobile taps: let the canvas receive touches */
-#game{
-  touch-action:none;
-  -webkit-user-select:none;
-  user-select:none;
-}
 
-/* UI should not block canvas, BUT clickable controls must still work */
-.top, .hud, .task, .toast, header, footer{
-  pointer-events:none;
-}
-
-/* Re-enable clicks for specific controls */
-#btnSettings, #btnMusic, #btnRestart, button, a{
-  pointer-events:auto;
-}
 /* ===============================
-   CLICK FIX PACK (put at bottom)
+   SAFETY: overlays must not eat taps
+   (keeps your glow layers innocent)
    =============================== */
-
-/* If you use overlays for glow/gradients, they MUST not eat taps */
 .wrap::before,
-.wrap::after,
-.stage::before,
-.stage::after {
-  pointer-events: none !important;
+.wrap::after{
+  pointer-events:none !important;
 }
-
-/* Make sure the UI header is above the game */
-.top {
-  position: sticky; /* or relative, sticky is nice on mobile */
-  top: 0;
-  z-index: 50;
-  pointer-events: auto;
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
-/* HUD and any buttons inside must be clickable */
-.hud,
-.brand,
-.actions,
-.btn,
-#btnRestart,
-#btnMusic,
-#btnHelp,
-#btnSettings {
-  position: relative;
-  z-index: 60;
-  pointer-events: auto;
-  touch-action: manipulation;
-}
-
-/* Make sure the game area doesn't cover the header */
-.stage {
-  position: relative;
-  z-index: 1;
-}
-
-/* If your canvas is positioned absolute/fixed, it might cover everything */
-#game {
-  position: relative;
-  z-index: 1;
-  touch-action: none; /* keeps drag control smooth */
-}
-
-/* If you have a big background layer, keep it behind */
 .bg,
 .background,
 .vignette,
-.glow-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
-/* Optional: if you made a fullscreen overlay for style, THIS is the usual villain */
+.glow-layer,
 .overlay,
 .screen-overlay,
-.ui-overlay {
-  pointer-events: none !important;
+.ui-overlay{
+  pointer-events:none !important;
 }
 
-/* iPhone bottom safe-area (keeps controls from sitting under the bar) */
-.help {
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-}
+/* Links look nice if you have any */
+a{ color: var(--green); text-decoration: none; }
+a:hover{ text-decoration: underline; }
