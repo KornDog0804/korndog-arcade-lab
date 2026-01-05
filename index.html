@@ -34,11 +34,11 @@
 
     <!-- Canvas -->
     <div class="wrap">
-      <canvas id="game" width="420" height="760" aria-label="KornDog Record Store canvas"></canvas>
+      <canvas id="game" aria-label="KornDog Record Store canvas"></canvas>
     </div>
 
     <!-- Bottom hint + toast -->
-    <div class="hint" id="hint">Drag / WASD to move. Tap stations to interact.</div>
+    <div class="hint" id="hint">WASD/Arrows to move • Tap floor to walk • Tap stations to interact</div>
     <div class="toast" id="toast" aria-live="polite"></div>
 
     <!-- Settings panel -->
@@ -60,11 +60,12 @@
         </div>
 
         <div class="panelNote">
-          Tip: Stock shelves to attract customers. Check them out at the register for cash + XP.
+          Tip: Grab records from the crate → stock shelves → customers line up → sell at the register for cash + XP.
         </div>
       </div>
     </div>
 
-    <script src="game.js"></script>
+    <!-- IMPORTANT: module script for Three.js import -->
+    <script type="module" src="game.js"></script>
   </body>
 </html>
