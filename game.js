@@ -1,430 +1,391 @@
-// ===============================
-// KornDog Arcade — Vinyl Blaster
-// Full copy/paste game.js (UPDATED)
-// Fixes: wave progression + mobile stuck movement
-// Includes: original 8-bit music + SFX
-// ===============================
+// ======================================
+// KornDog Records — Idle Tycoon (v1)
+// Walk -> Pickup -> Stock -> Auto-buy
+// Full copy/paste game.js
+// ======================================
 
-const c = document.getElementById("game");
-const ctx = c.getContext("2d");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-const scoreEl = document.getElementById("score");
-const livesEl = document.getElementById("lives");
-const waveEl = document.getElementById("wave");
-const btnRestart = document.getElementById("btnRestart");
-const btnMusic = document.getElementById("btnMusic"); // optional (add in HTML if you want)
+const cashEl = document.getElementById("cash");
+const xpFill = document.getElementById("xpFill");
+const xpNowEl = document.getElementById("xpNow");
+const xpNeedEl = document.getElementById("xpNeed");
+const taskText = document.getElementById("taskText");
+const taskIcon = document.getElementById("taskIcon");
+const toast = document.getElementById("toast");
 
-if (btnRestart) btnRestart.addEventListener("click", () => reset(true));
+const W = canvas.width;
+const H = canvas.height;
 
-const W = c.width, H = c.height;
+// ---------- helpers ----------
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const dist2 = (ax,ay,bx,by)=>{ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; };
 
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>toast.classList.remove("show"), 900);
+}
+
+function money(n){ return `$${Math.floor(n).toLocaleString()}`; }
+
+// ---------- game state ----------
+let cash = 0;
+let xp = 0;
+let xpNeed = 5;
+
+let last = performance.now();
 let keys = new Set();
-let score = 0;
-let lives = 3;
-let wave = 1;
 
-let last = 0;
-let cooldown = 0;
+// “feel like mobile idle games”
+let task = "PICKUP"; // PICKUP -> SHELF -> SELL (auto)
+setTask("PICKUP");
 
-// Wave pacing (prevents the score%wave bug)
-let nextWaveScore = 120;
-
-// -------------------- AUDIO (ORIGINAL 8-BIT) --------------------
-let audioCtx = null;
-let musicOn = false;
-let musicTimer = null;
-
-function ensureAudio() {
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return null;
-  if (!audioCtx) audioCtx = new Ctx();
-  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-  return audioCtx;
+function setTask(t){
+  task = t;
+  if (t === "PICKUP"){
+    taskIcon.textContent = "📦";
+    taskText.textContent = "Pick up records";
+  } else if (t === "SHELF"){
+    taskIcon.textContent = "🧱";
+    taskText.textContent = "Put records on shelf";
+  }
 }
 
-function midiToFreq(m) {
-  return 440 * Math.pow(2, (m - 69) / 12);
-}
-
-function playTone({ type = "square", freq = 440, dur = 0.12, vol = 0.08, when = 0, lp = 8000 }) {
-  const ac = ensureAudio();
-  if (!ac) return;
-
-  const t0 = ac.currentTime + when;
-
-  const osc = ac.createOscillator();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, t0);
-
-  const gain = ac.createGain();
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.linearRampToValueAtTime(vol, t0 + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
-  const filter = ac.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(lp, t0);
-
-  osc.connect(filter);
-  filter.connect(gain);
-  gain.connect(ac.destination);
-
-  osc.start(t0);
-  osc.stop(t0 + dur + 0.02);
-}
-
-// SFX
-function sfxShoot() {
-  playTone({ type: "square", freq: 880, dur: 0.06, vol: 0.05, lp: 6500 });
-  playTone({ type: "square", freq: 660, dur: 0.07, vol: 0.04, when: 0.01, lp: 6500 });
-}
-
-function sfxHit() {
-  playTone({ type: "triangle", freq: 240, dur: 0.05, vol: 0.06, lp: 4000 });
-  playTone({ type: "square", freq: 120, dur: 0.06, vol: 0.035, when: 0.01, lp: 2800 });
-}
-
-function sfxExplosion() {
-  playTone({ type: "sine", freq: 140, dur: 0.10, vol: 0.09, lp: 2200 });
-  playTone({ type: "sine", freq: 80, dur: 0.12, vol: 0.07, when: 0.02, lp: 1800 });
-}
-
-// Music loop (original)
-function startMusic() {
-  if (musicTimer) return;
-
-  const bpm = 120;
-  const stepDur = 60 / bpm / 4; // 16ths
-  let step = 0;
-
-  // ORIGINAL patterns (no copyrighted melodies)
-  const lead = [
-    76, null, 79, null, 81, null, 79, null,
-    76, null, 74, null, 72, null, 74, null
-  ];
-  const bass = [
-    40, null, null, null, 40, null, null, null,
-    43, null, null, null, 43, null, null, null
-  ];
-  const arp = [
-    64, 67, 71, 67,
-    64, 67, 71, 67,
-    62, 66, 69, 66,
-    62, 66, 69, 66
-  ];
-
-  musicTimer = setInterval(() => {
-    if (!musicOn) return;
-
-    const ln = lead[step % lead.length];
-    if (ln != null) {
-      playTone({ type: "square", freq: midiToFreq(ln), dur: stepDur * 1.5, vol: 0.045, lp: 7200 });
-    }
-
-    const bn = bass[step % bass.length];
-    if (bn != null) {
-      playTone({ type: "square", freq: midiToFreq(bn), dur: stepDur * 2.6, vol: 0.055, lp: 2600 });
-    }
-
-    const an = arp[step % arp.length];
-    playTone({ type: "triangle", freq: midiToFreq(an), dur: stepDur * 0.65, vol: 0.022, lp: 6200 });
-
-    step++;
-  }, stepDur * 1000);
-}
-
-function stopMusic() {
-  if (musicTimer) clearInterval(musicTimer);
-  musicTimer = null;
-}
-
-function toggleMusic(force) {
-  ensureAudio();
-  musicOn = typeof force === "boolean" ? force : !musicOn;
-  if (musicOn) startMusic();
-  else stopMusic();
-
-  if (btnMusic) btnMusic.textContent = musicOn ? "⏸ Music" : "▶ Music";
-}
-
-if (btnMusic) btnMusic.addEventListener("click", () => toggleMusic());
-
-// -------------------- GAME STATE --------------------
+// ---------- world objects ----------
 const player = {
-  x: W / 2,
-  y: H - 54,
-  r: 16,
-  vx: 0,
+  x: W*0.5,
+  y: H*0.72,
+  r: 14,
+  speed: 155,
+  carry: 0,
+  carryMax: 4,
 };
 
-let bullets = [];
-let enemies = [];
-let sparks = [];
+const crate = { x: W*0.22, y: H*0.40, r: 22 };
+const shelf = { x: W*0.72, y: H*0.44, r: 26, stock: 0, stockMax: 12 };
+const register = { x: W*0.58, y: H*0.28, r: 24 };
 
-function rand(min, max) { return Math.random() * (max - min) + min; }
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+let customerTimer = 0;
+let customerInterval = 2.8; // seconds (auto-buy loop)
+let autoSaleValue = 6;
 
-function spawnWave(n) {
-  enemies = [];
-  for (let i = 0; i < n; i++) {
-    enemies.push({
-      x: rand(24, W - 24),
-      y: rand(-H * 0.7, -30),
-      r: rand(12, 18),
-      vy: rand(55, 95) + wave * 6,
-      hp: 1 + Math.floor(wave / 3),
-      wob: rand(0.8, 1.6),
-      t: rand(0, Math.PI * 2),
-    });
+// ---------- input (mobile drag + WASD) ----------
+let dragging = false;
+let dragStart = null;
+let dragVec = {x:0,y:0};
+
+canvas.addEventListener("pointerdown", (e)=>{
+  dragging = true;
+  const rect = canvas.getBoundingClientRect();
+  dragStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  dragVec = {x:0,y:0};
+});
+
+canvas.addEventListener("pointermove", (e)=>{
+  if (!dragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  dragVec.x = x - dragStart.x;
+  dragVec.y = y - dragStart.y;
+});
+
+canvas.addEventListener("pointerup", ()=>{
+  dragging = false;
+  dragStart = null;
+  dragVec = {x:0,y:0};
+});
+
+canvas.addEventListener("pointercancel", ()=>{
+  dragging = false;
+  dragStart = null;
+  dragVec = {x:0,y:0};
+});
+
+window.addEventListener("keydown", (e)=> keys.add(e.key.toLowerCase()));
+window.addEventListener("keyup", (e)=> keys.delete(e.key.toLowerCase()));
+
+// tap station to interact (works great on phone)
+canvas.addEventListener("click", (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const y = (e.clientY - rect.top) * (H / rect.height);
+
+  // if tapped near a station, attempt interact
+  if (dist2(x,y,crate.x,crate.y) < (crate.r+26)**2) interact("crate");
+  else if (dist2(x,y,shelf.x,shelf.y) < (shelf.r+28)**2) interact("shelf");
+  else if (dist2(x,y,register.x,register.y) < (register.r+28)**2) interact("register");
+});
+
+function addXP(n=1){
+  xp += n;
+  if (xp >= xpNeed){
+    xp -= xpNeed;
+    xpNeed = Math.round(xpNeed * 1.35 + 1);
+    showToast("⭐ Level up! (+carry soon)");
+    // small progression rewards
+    if (player.carryMax < 8) player.carryMax += 1;
+    autoSaleValue += 1;
+    customerInterval = Math.max(1.5, customerInterval - 0.12);
+  }
+  xpNowEl.textContent = String(xp);
+  xpNeedEl.textContent = String(xpNeed);
+  xpFill.style.width = `${Math.round((xp/xpNeed)*100)}%`;
+}
+
+function addCash(n){
+  cash += n;
+  cashEl.textContent = money(cash);
+}
+
+// ---------- interactions ----------
+function interact(which){
+  const near = (obj)=> dist2(player.x,player.y,obj.x,obj.y) <= (obj.r + player.r + 12) ** 2;
+
+  if (which === "crate"){
+    if (!near(crate)) return showToast("Get closer to the crate");
+    if (player.carry >= player.carryMax) return showToast("Hands full");
+
+    const grab = Math.min(2, player.carryMax - player.carry); // quick pickup feel
+    player.carry += grab;
+    showToast(`Picked up ${grab} record${grab>1?"s":""}`);
+    addXP(1);
+
+    if (player.carry > 0) setTask("SHELF");
+    return;
+  }
+
+  if (which === "shelf"){
+    if (!near(shelf)) return showToast("Get closer to the shelf");
+    if (player.carry <= 0) return showToast("You’re carrying nothing");
+    if (shelf.stock >= shelf.stockMax) return showToast("Shelf is full");
+
+    const place = Math.min(player.carry, shelf.stockMax - shelf.stock);
+    shelf.stock += place;
+    player.carry -= place;
+    showToast(`Stocked ${place} on shelf`);
+    addXP(1);
+
+    if (player.carry === 0) setTask("PICKUP");
+    return;
+  }
+
+  if (which === "register"){
+    if (!near(register)) return showToast("Get closer to the register");
+    showToast("Register runs auto-sales when shelf has stock");
   }
 }
 
-function pop(x, y, n = 10) {
-  for (let i = 0; i < n; i++) {
-    sparks.push({
-      x, y,
-      vx: rand(-120, 120),
-      vy: rand(-140, 70),
-      life: rand(0.25, 0.55),
-    });
-  }
-}
+// ---------- update ----------
+function step(dt){
+  // movement
+  let vx = 0, vy = 0;
 
-function drawGlowCircle(x, y, r, inner, outer) {
-  const g = ctx.createRadialGradient(x, y, 2, x, y, r * 2.4);
-  g.addColorStop(0, inner);
-  g.addColorStop(1, outer);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
-  ctx.fill();
-}
+  // keyboard
+  if (keys.has("a") || keys.has("arrowleft")) vx -= 1;
+  if (keys.has("d") || keys.has("arrowright")) vx += 1;
+  if (keys.has("w") || keys.has("arrowup")) vy -= 1;
+  if (keys.has("s") || keys.has("arrowdown")) vy += 1;
 
-function reset(hard = false) {
-  score = hard ? 0 : score;
-  lives = 3;
-  wave = 1;
-  nextWaveScore = 120;
-
-  bullets = [];
-  sparks = [];
-  player.x = W / 2;
-  cooldown = 0;
-
-  spawnWave(8);
-  syncHUD();
-}
-
-function syncHUD() {
-  if (scoreEl) scoreEl.textContent = String(score);
-  if (livesEl) livesEl.textContent = String(lives);
-  if (waveEl) waveEl.textContent = String(wave);
-}
-
-function fire() {
-  if (cooldown > 0) return;
-  cooldown = 0.18;
-  bullets.push({ x: player.x, y: player.y - 18, vy: -420, r: 4 });
-  sfxShoot();
-}
-
-// -------------------- UPDATE --------------------
-function step(dt) {
-  // input
-  const left = keys.has("ArrowLeft") || keys.has("a");
-  const right = keys.has("ArrowRight") || keys.has("d");
-
-  player.vx = 0;
-  if (left) player.vx = -240;
-  if (right) player.vx = 240;
-  player.x = clamp(player.x + player.vx * dt, 22, W - 22);
-
-  cooldown = Math.max(0, cooldown - dt);
-
-  // bullets
-  bullets = bullets.filter(b => (b.y > -20));
-  for (const b of bullets) b.y += b.vy * dt;
-
-  // enemies
-  for (const e of enemies) {
-    e.t += dt * e.wob;
-    e.y += e.vy * dt;
-    e.x += Math.sin(e.t) * 30 * dt;
-
-    // if it reaches bottom, you take a hit
-    if (e.y - e.r > H + 8) {
-      e.y = rand(-140, -30);
-      e.x = rand(24, W - 24);
-      lives -= 1;
-      pop(player.x, player.y, 16);
-      sfxExplosion();
-
-      if (lives <= 0) {
-        reset(true);
-        return;
-      }
-      syncHUD();
+  // drag joystick
+  if (dragging){
+    const len = Math.hypot(dragVec.x, dragVec.y);
+    if (len > 8){
+      vx += dragVec.x / Math.max(60, len);
+      vy += dragVec.y / Math.max(60, len);
     }
   }
 
-  // collisions
-  for (const b of bullets) {
-    for (const e of enemies) {
-      const dx = b.x - e.x;
-      const dy = b.y - e.y;
-      const rr = (b.r + e.r);
-      if (dx * dx + dy * dy <= rr * rr) {
-        b.y = -999;
-        e.hp -= 1;
-        pop(e.x, e.y, 8);
-        sfxHit();
+  // normalize
+  const mag = Math.hypot(vx, vy) || 1;
+  vx /= mag; vy /= mag;
 
-        if (e.hp <= 0) {
-          score += 10 * wave;
-          e.y = rand(-H * 0.7, -30);
-          e.x = rand(24, W - 24);
-          e.hp = 1 + Math.floor(wave / 3);
-          syncHUD();
-          sfxExplosion();
-        }
-      }
+  player.x = clamp(player.x + vx * player.speed * dt, 26, W-26);
+  player.y = clamp(player.y + vy * player.speed * dt, 60, H-26);
+
+  // auto customers buying if stock exists
+  customerTimer += dt;
+  if (customerTimer >= customerInterval){
+    customerTimer = 0;
+    if (shelf.stock > 0){
+      shelf.stock -= 1;
+      addCash(autoSaleValue);
+      addXP(1);
+      showToast(`💸 Sale! +$${autoSaleValue}`);
     }
   }
 
-  // sparks
-  sparks = sparks.filter(s => (s.life > 0));
-  for (const s of sparks) {
-    s.life -= dt;
-    s.x += s.vx * dt;
-    s.y += s.vy * dt;
-    s.vy += 260 * dt;
-  }
-
-  // ✅ wave progression (no modulo double-trigger)
-  if (score >= nextWaveScore) {
-    wave += 1;
-    nextWaveScore += 120 * wave;
-    spawnWave(7 + wave);
-    syncHUD();
-    pop(W / 2, H / 3, 30);
-    sfxExplosion();
-  }
+  // keep HUD cash synced
+  cashEl.textContent = money(cash);
 }
 
-// -------------------- DRAW --------------------
-function draw() {
-  ctx.clearRect(0, 0, W, H);
+// ---------- draw ----------
+function draw(){
+  ctx.clearRect(0,0,W,H);
 
-  // background stars
-  ctx.globalAlpha = 0.25;
-  for (let i = 0; i < 26; i++) {
-    const x = (i * 47 + (performance.now() * 0.02)) % W;
-    const y = (i * 89 + (performance.now() * 0.03)) % H;
-    ctx.fillStyle = "white";
-    ctx.fillRect(x, y, 2, 2);
+  // floor grid
+  ctx.globalAlpha = 0.10;
+  for (let y=80; y<H; y+=36){
+    for (let x=0; x<W; x+=36){
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x+10, y+10, 2, 2);
+    }
   }
   ctx.globalAlpha = 1;
 
-  // player glow + body
-  drawGlowCircle(player.x, player.y, player.r, "rgba(60,255,136,.35)", "rgba(0,0,0,0)");
-  ctx.fillStyle = "rgba(255,255,255,.92)";
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
-  ctx.fill();
+  // big room panel
+  roundRect(18, 86, W-36, H-120, 22, "rgba(0,0,0,.18)", "rgba(255,255,255,.10)");
 
-  // bullets
-  for (const b of bullets) {
-    drawGlowCircle(b.x, b.y, b.r, "rgba(124,60,255,.55)", "rgba(0,0,0,0)");
-    ctx.fillStyle = "rgba(180,160,255,.95)";
+  // stations
+  drawStation(crate.x, crate.y, crate.r, "Crate", `Carry: ${player.carry}/${player.carryMax}`, "rgba(124,60,255,.22)");
+  drawStation(shelf.x, shelf.y, shelf.r, "Shelf", `Stock: ${shelf.stock}/${shelf.stockMax}`, "rgba(87,255,147,.18)");
+  drawStation(register.x, register.y, register.r, "Register", `Auto: $${autoSaleValue}`, "rgba(255,255,255,.10)");
+
+  // guidance arrow (like your screenshot)
+  const target = (task === "PICKUP") ? crate : shelf;
+  drawArrow(target.x, target.y - target.r - 22);
+
+  // player
+  drawPlayer();
+
+  // carry bubbles
+  if (player.carry > 0){
+    ctx.fillStyle = "rgba(0,0,0,.35)";
     ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.roundRect(player.x - 20, player.y - 44, 40, 20, 10);
     ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    ctx.font = "900 12px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${player.carry}/${player.carryMax}`, player.x, player.y - 34);
   }
 
-  // enemies
-  for (const e of enemies) {
-    drawGlowCircle(e.x, e.y, e.r, "rgba(255,255,255,.18)", "rgba(0,0,0,0)");
-    ctx.fillStyle = "rgba(0,0,0,.65)";
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
-    ctx.fill();
+  // bottom hint bar inside canvas
+  ctx.fillStyle = "rgba(0,0,0,.22)";
+  ctx.beginPath();
+  ctx.roundRect(24, H-66, W-48, 42, 16);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.78)";
+  ctx.font = "800 12px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Tap crate/shelf to interact • Auto-sales happen when shelf has stock", W/2, H-45);
+}
 
-    ctx.strokeStyle = "rgba(255,255,255,.25)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, e.r - 3, 0, Math.PI * 2);
+function drawPlayer(){
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,.22)";
+  ctx.beginPath();
+  ctx.ellipse(player.x, player.y + 12, 18, 8, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // body
+  const grad = ctx.createRadialGradient(player.x-6, player.y-8, 6, player.x, player.y, 24);
+  grad.addColorStop(0, "rgba(255,255,255,.90)");
+  grad.addColorStop(1, "rgba(255,255,255,.18)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+  ctx.fill();
+
+  // hat (kornish)
+  ctx.fillStyle = "rgba(124,60,255,.75)";
+  ctx.beginPath();
+  ctx.roundRect(player.x-14, player.y-20, 28, 10, 6);
+  ctx.fill();
+}
+
+function drawStation(x,y,r,title,sub,glow){
+  // glow
+  const g = ctx.createRadialGradient(x,y,2,x,y,r*2.2);
+  g.addColorStop(0, glow);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x,y,r*2.0,0,Math.PI*2);
+  ctx.fill();
+
+  // base
+  ctx.fillStyle = "rgba(0,0,0,.35)";
+  ctx.beginPath();
+  ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255,255,255,.22)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x,y,r-3,0,Math.PI*2);
+  ctx.stroke();
+
+  // label
+  ctx.fillStyle = "rgba(0,0,0,.30)";
+  ctx.beginPath();
+  ctx.roundRect(x-56, y+r+10, 112, 34, 12);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255,255,255,.92)";
+  ctx.font = "900 12px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(title, x, y+r+14);
+
+  ctx.fillStyle = "rgba(255,255,255,.70)";
+  ctx.font = "800 11px system-ui";
+  ctx.fillText(sub, x, y+r+28);
+}
+
+function drawArrow(x,y){
+  ctx.save();
+  ctx.translate(x,y);
+  const bob = Math.sin(performance.now()*0.004)*6;
+
+  ctx.fillStyle = "rgba(87,255,147,.95)";
+  ctx.beginPath();
+  ctx.moveTo(0, bob);
+  ctx.lineTo(-18, bob-18);
+  ctx.lineTo(-6, bob-18);
+  ctx.lineTo(-6, bob-40);
+  ctx.lineTo(6, bob-40);
+  ctx.lineTo(6, bob-18);
+  ctx.lineTo(18, bob-18);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function roundRect(x,y,w,h,r,fill,stroke){
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,r);
+  if (fill){
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  if (stroke){
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
   }
-
-  // sparks
-  ctx.fillStyle = "rgba(60,255,136,.9)";
-  for (const s of sparks) {
-    ctx.globalAlpha = clamp(s.life * 2, 0, 1);
-    ctx.fillRect(s.x, s.y, 3, 3);
-  }
-  ctx.globalAlpha = 1;
-
-  // subtle vignette
-  const g = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, 340);
-  g.addColorStop(0, "rgba(0,0,0,0)");
-  g.addColorStop(1, "rgba(0,0,0,.35)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
 }
 
-// -------------------- LOOP --------------------
-function loop(t) {
-  const dt = Math.min(0.033, (t - last) / 1000);
+// ---------- loop ----------
+function loop(t){
+  const dt = Math.min(0.033, (t-last)/1000);
   last = t;
   step(dt);
   draw();
   requestAnimationFrame(loop);
 }
 
-// -------------------- INPUT --------------------
-window.addEventListener("keydown", (e) => {
-  ensureAudio();
+// init HUD
+cashEl.textContent = money(cash);
+xpNowEl.textContent = String(xp);
+xpNeedEl.textContent = String(xpNeed);
+xpFill.style.width = "0%";
 
-  if (e.key === " ") { e.preventDefault(); fire(); return; }
-  if (e.key.toLowerCase() === "r") { reset(true); return; }
-  if (e.key.toLowerCase() === "m") { toggleMusic(); return; }
-  keys.add(e.key);
-});
-
-window.addEventListener("keyup", (e) => keys.delete(e.key));
-
-// mobile: tap left/right + tap top half to shoot
-c.addEventListener("pointerdown", (e) => {
-  ensureAudio();
-
-  const rect = c.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-
-  if (y < rect.height * 0.55) {
-    fire();
-    return;
-  }
-  if (x < rect.width * 0.5) keys.add("ArrowLeft");
-  else keys.add("ArrowRight");
-});
-
-c.addEventListener("pointerup", () => {
-  keys.delete("ArrowLeft");
-  keys.delete("ArrowRight");
-});
-
-c.addEventListener("pointercancel", () => {
-  keys.delete("ArrowLeft");
-  keys.delete("ArrowRight");
-});
-
-// ✅ mobile “stuck movement” fix
-window.addEventListener("blur", () => keys.clear());
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) keys.clear();
-});
-
-// -------------------- START --------------------
-reset(true);
+showToast("Pick up records to start!");
 requestAnimationFrame(loop);
