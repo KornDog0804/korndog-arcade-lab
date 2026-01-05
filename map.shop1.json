@@ -1,0 +1,56 @@
+{
+  "name": "Shop 1 - Retro",
+  "mapW": 20,
+  "mapH": 12,
+
+  "tiles": {
+    "VOID": 0,
+    "FLOOR": 1,
+    "RUG": 2,
+    "WALL": 3,
+    "COUNTER": 4,
+    "SHELF": 5,
+    "CRATE": 7,
+    "REGISTER": 8,
+    "PLANT": 9
+  },
+
+  "solid": ["WALL", "COUNTER", "SHELF", "CRATE", "REGISTER"],
+
+  "playerSpawn": { "x": 7, "y": 9 },
+
+  "paint": [
+    { "fill": "FLOOR" },
+
+    { "rect": { "x": 0, "y": 0, "w": 20, "h": 1 }, "tile": "WALL" },
+    { "rect": { "x": 0, "y": 11, "w": 20, "h": 1 }, "tile": "WALL" },
+    { "rect": { "x": 0, "y": 0, "w": 1, "h": 12 }, "tile": "WALL" },
+    { "rect": { "x": 19, "y": 0, "w": 1, "h": 12 }, "tile": "WALL" },
+
+    { "rect": { "x": 4, "y": 6, "w": 12, "h": 5 }, "tile": "RUG" },
+
+    { "rect": { "x": 12, "y": 2, "w": 7, "h": 2 }, "tile": "COUNTER" },
+
+    { "rect": { "x": 3, "y": 6, "w": 1, "h": 2 }, "tile": "CRATE" },
+
+    { "rect": { "x": 16, "y": 8, "w": 2, "h": 1 }, "tile": "REGISTER" },
+
+    { "rect": { "x": 6, "y": 4, "w": 5, "h": 1 }, "tile": "SHELF" },
+    { "rect": { "x": 10, "y": 4, "w": 5, "h": 1 }, "tile": "SHELF" },
+    { "rect": { "x": 14, "y": 4, "w": 5, "h": 1 }, "tile": "SHELF" },
+
+    { "point": { "x": 2, "y": 2 }, "tile": "PLANT" },
+    { "point": { "x": 18, "y": 10 }, "tile": "PLANT" }
+  ],
+
+  "zones": {
+    "crate": { "x": 3, "y": 6, "w": 1, "h": 2 },
+    "register": { "x": 16, "y": 8, "w": 2, "h": 1 }
+  },
+
+  "shelves": [
+    { "x": 4, "y": 4, "w": 5, "cap": 30 },
+    { "x": 8, "y": 4, "w": 5, "cap": 30 },
+    { "x": 12, "y": 4, "w": 5, "cap": 30 }
+  ]
+}
