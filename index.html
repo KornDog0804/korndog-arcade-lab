@@ -2,39 +2,68 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>KornDog Records — Idle Tycoon</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>KornDog Record Store</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
-    <div class="hud">
-      <button class="icon-btn" id="btnSettings" aria-label="Settings">⚙️</button>
 
-      <div class="xp">
-        <div class="star">⭐</div>
-        <div class="bar">
-          <div class="fill" id="xpFill" style="width:0%"></div>
-          <div class="txt"><span id="xpNow">0</span>/<span id="xpNeed">5</span></div>
+  <body>
+    <!-- HUD -->
+    <div class="hud" aria-label="Top HUD">
+      <button id="btnSettings" class="icon-btn" type="button" aria-label="Settings">⚙️</button>
+
+      <div class="xp" aria-label="XP progress">
+        <div class="star" aria-hidden="true">⭐</div>
+        <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="fill" id="xpFill"></div>
+          <div class="txt" id="xpText">0/10</div>
         </div>
       </div>
 
-      <div class="cash">
-        <div class="bill">💵</div>
+      <div class="cash" aria-label="Cash">
+        <div class="bill" aria-hidden="true">💵</div>
         <div class="amt" id="cash">$0</div>
       </div>
     </div>
 
-    <div class="task" id="taskBar">
-      <div class="taskIcon" id="taskIcon">📦</div>
+    <!-- Task -->
+    <div class="task" aria-label="Task prompt">
+      <div class="taskIcon" id="taskIcon" aria-hidden="true">📦</div>
       <div class="taskText" id="taskText">Pick up records</div>
     </div>
 
+    <!-- Canvas -->
     <div class="wrap">
-      <canvas id="game" width="420" height="760" aria-label="KornDog Idle Game"></canvas>
-      <div class="hint">Drag / WASD to move. Tap stations to interact.</div>
+      <canvas id="game" width="420" height="760" aria-label="KornDog Record Store canvas"></canvas>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <!-- Bottom hint + toast -->
+    <div class="hint" id="hint">Drag / WASD to move. Tap stations to interact.</div>
+    <div class="toast" id="toast" aria-live="polite"></div>
+
+    <!-- Settings panel -->
+    <div class="panel" id="settingsPanel" aria-hidden="true">
+      <div class="panelCard">
+        <div class="panelHead">
+          <div class="panelTitle">Settings</div>
+          <button id="btnCloseSettings" class="icon-btn sm" type="button" aria-label="Close">✖</button>
+        </div>
+
+        <div class="panelRow">
+          <div class="panelLabel">Music</div>
+          <button id="btnMusic" class="btn" type="button">▶ Music</button>
+        </div>
+
+        <div class="panelRow">
+          <div class="panelLabel">Restart</div>
+          <button id="btnRestart" class="btn ghost" type="button">Restart Day</button>
+        </div>
+
+        <div class="panelNote">
+          Tip: Stock shelves to attract customers. Check them out at the register for cash + XP.
+        </div>
+      </div>
+    </div>
 
     <script src="game.js"></script>
   </body>
