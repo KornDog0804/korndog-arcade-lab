@@ -24,6 +24,26 @@ const btnRestart = document.getElementById("btnRestart");
 
 const W = c.width, H = c.height;
 
+// -------------------- Canvas roundRect fallback --------------------
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    const rr = Array.isArray(r) ? r : [r, r, r, r];
+    const [r1, r2, r3, r4] = rr.map(v => Math.max(0, Math.min(v, Math.min(w, h) / 2)));
+    this.beginPath();
+    this.moveTo(x + r1, y);
+    this.lineTo(x + w - r2, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + r2);
+    this.lineTo(x + w, y + h - r3);
+    this.quadraticCurveTo(x + w, y + h, x + w - r3, y + h);
+    this.lineTo(x + r4, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - r4);
+    this.lineTo(x, y + r1);
+    this.quadraticCurveTo(x, y, x + r1, y);
+    this.closePath();
+    return this;
+  };
+}
+
 // -------------------- Helpers --------------------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => Math.random() * (b - a) + a;
@@ -31,6 +51,13 @@ const dist2 = (ax, ay, bx, by) => {
   const dx = ax - bx, dy = ay - by;
   return dx * dx + dy * dy;
 };
+
+function canvasXY(evt) {
+  const r = c.getBoundingClientRect();
+  const x = ((evt.clientX - r.left) / r.width) * W;
+  const y = ((evt.clientY - r.top) / r.height) * H;
+  return { x, y };
+}
 
 let toastTimer = 0;
 function toast(msg) {
@@ -129,18 +156,24 @@ function toggleMusic(force) {
   if (btnMusic) btnMusic.textContent = musicOn ? "⏸ Music" : "▶ Music";
 }
 
-// -------------------- UI: settings panel --------------------
+// -------------------- UI: settings panel (MATCHES CSS: .panel.show) --------------------
 function openSettings(open) {
   if (!settingsPanel) return;
-  const on = typeof open === "boolean" ? open : !settingsPanel.classList.contains("open");
-  settingsPanel.classList.toggle("open", on);
+  const on = typeof open === "boolean" ? open : !settingsPanel.classList.contains("show");
+  settingsPanel.classList.toggle("show", on);
   settingsPanel.setAttribute("aria-hidden", on ? "false" : "true");
 }
-if (btnSettings) btnSettings.addEventListener("click", () => openSettings(true));
-if (btnCloseSettings) btnCloseSettings.addEventListener("click", () => openSettings(false));
-if (settingsPanel) settingsPanel.addEventListener("click", (e) => {
-  if (e.target === settingsPanel) openSettings(false);
-});
+
+if (btnSettings) btnSettings.addEventListener("click", (e) => { e.stopPropagation(); openSettings(true); });
+if (btnCloseSettings) btnCloseSettings.addEventListener("click", (e) => { e.stopPropagation(); openSettings(false); });
+
+if (settingsPanel) {
+  // click outside the card closes
+  settingsPanel.addEventListener("click", (e) => {
+    if (e.target === settingsPanel) openSettings(false);
+  });
+}
+
 if (btnMusic) btnMusic.addEventListener("click", () => toggleMusic());
 if (btnRestart) btnRestart.addEventListener("click", () => reset(true));
 
@@ -161,10 +194,8 @@ let xp = 0;
 let xpNeed = 10;
 
 const store = {
-  // Stations are circles/rects you can tap OR walk into + tap
-  crate:   { x: W*0.22, y: H*0.56, w: 90, h: 56, label:"RECORD CRATE", stock: 9999 },
-  register:{ x: W*0.68, y: H*0.70, w: 150, h: 70, label:"REGISTER" },
-
+  crate:    { x: W*0.22, y: H*0.56, w: 90,  h: 56, label:"RECORD CRATE" },
+  register: { x: W*0.68, y: H*0.70, w: 150, h: 70, label:"REGISTER" },
   shelves: [
     { x: W*0.78, y: H*0.40, w: 140, h: 72, label:"SHELF", cap: 18, stock: 0 },
     { x: W*0.22, y: H*0.34, w: 140, h: 72, label:"SHELF", cap: 18, stock: 0 },
@@ -183,7 +214,7 @@ const queue = {
   spawnTimer: 0,
 };
 
-const dust = Array.from({length: 26}, (_,i)=>({
+const dust = Array.from({length: 26}, ()=>({
   x: rand(0,W), y: rand(0,H), r: rand(0.8,1.8), s: rand(6,14)
 }));
 
@@ -231,7 +262,6 @@ function gainXP(n){
     xp = xp - xpNeed;
     xpNeed = Math.floor(xpNeed * 1.15) + 2;
     toast("LEVEL UP! ⭐");
-    // reward: increase carry a bit sometimes
     if (player.carryMax < 10 && Math.random() < 0.6) {
       player.carryMax += 1;
       toast(`Carry upgraded: ${player.carryMax}`);
@@ -245,41 +275,32 @@ function canAttractCustomers(){
 }
 
 function spawnCustomer(){
-  // Spawn at entrance area (bottom-left-ish) and assign a queue slot
   if (queue.customers.length >= queue.spots.length) return;
-
   queue.customers.push({
     x: W*0.16 + rand(-10,10),
     y: H*0.92 + rand(-8,8),
     r: 10,
     speed: 70 + rand(-10, 15),
-    state: "toQueue",
   });
 }
 
 function updateCustomers(dt){
-  // spawn pacing
   queue.spawnTimer -= dt;
   if (queue.spawnTimer <= 0){
     queue.spawnTimer = rand(1.3, 2.4);
     if (canAttractCustomers()) spawnCustomer();
   }
 
-  // move them into queue spots
   for (let i=0;i<queue.customers.length;i++){
     const cu = queue.customers[i];
     const spot = queue.spots[i];
-    const tx = spot.x, ty = spot.y;
-
-    const dx = tx - cu.x;
-    const dy = ty - cu.y;
+    const dx = spot.x - cu.x;
+    const dy = spot.y - cu.y;
     const d = Math.hypot(dx, dy);
 
     if (d > 1){
-      const vx = (dx / d) * cu.speed;
-      const vy = (dy / d) * cu.speed;
-      cu.x += vx * dt;
-      cu.y += vy * dt;
+      cu.x += (dx / d) * cu.speed * dt;
+      cu.y += (dy / d) * cu.speed * dt;
     }
   }
 }
@@ -297,7 +318,7 @@ function interactCrate(){
     toast("Bag full.");
     return;
   }
-  const take = Math.min(2, player.carryMax - player.carry); // pick up 2 at a time
+  const take = Math.min(2, player.carryMax - player.carry);
   player.carry += take;
   sfxPickup();
   toast(`Picked up ${take} record${take>1?"s":""}. (${player.carry}/${player.carryMax})`);
@@ -325,7 +346,6 @@ function interactShelf(shelf){
 }
 
 function takeFromAnyShelf(){
-  // selling consumes stock across shelves (front-to-back)
   for (const s of store.shelves){
     if (s.stock > 0){
       s.stock -= 1;
@@ -346,32 +366,23 @@ function interactRegister(){
     return;
   }
 
-  // pay varies a bit
   const pay = Math.floor(rand(18, 38));
   cash += pay;
   sfxCash();
   toast(`Sold 1 record +$${pay}`);
 
-  // remove first customer, shift queue
   queue.customers.shift();
 
   gainXP(2);
   syncHUD();
 }
 
-// Tap detection: if you tap near a station, it interacts.
-// Also works if you walk near and tap.
 function tryInteractAt(x, y){
-  // prefer station you tapped closest to
   const candidates = [];
 
-  // crate
   candidates.push({ type:"crate", d: dist2(x,y, store.crate.x, store.crate.y) });
-
-  // register
   candidates.push({ type:"register", d: dist2(x,y, store.register.x, store.register.y) });
 
-  // shelves
   store.shelves.forEach((s,idx)=>{
     candidates.push({ type:"shelf", idx, d: dist2(x,y, s.x, s.y) });
   });
@@ -379,26 +390,33 @@ function tryInteractAt(x, y){
   candidates.sort((a,b)=>a.d-b.d);
   const best = candidates[0];
 
-  // must be close enough
-  if (best.d > 85*85) return false;
+  // tap radius for selecting a station
+  if (best.d > 95*95) return false;
 
-  if (best.type === "crate" && nearRect(player, store.crate)) { interactCrate(); return true; }
-  if (best.type === "register" && nearRect(player, store.register)) { interactRegister(); return true; }
-  if (best.type === "shelf") {
-    const s = store.shelves[best.idx];
-    if (nearRect(player, s)) { interactShelf(s); return true; }
+  if (best.type === "crate") {
+    if (nearRect(player, store.crate)) interactCrate();
+    else toast("Walk to the crate to pick up records.");
+    return true;
   }
 
-  // If player isn't close, give guidance
-  if (best.type === "crate") toast("Walk to the crate to pick up records.");
-  if (best.type === "register") toast("Walk to the register to check out.");
-  if (best.type === "shelf") toast("Walk to a shelf to stock it.");
-  return true;
+  if (best.type === "register") {
+    if (nearRect(player, store.register)) interactRegister();
+    else toast("Walk to the register to check out.");
+    return true;
+  }
+
+  if (best.type === "shelf") {
+    const s = store.shelves[best.idx];
+    if (nearRect(player, s)) interactShelf(s);
+    else toast("Walk to a shelf to stock it.");
+    return true;
+  }
+
+  return false;
 }
 
 // -------------------- Movement (WASD + drag-to-move) --------------------
 function updatePlayer(dt){
-  // keyboard
   const left = keys.has("ArrowLeft") || keys.has("a");
   const right = keys.has("ArrowRight") || keys.has("d");
   const up = keys.has("ArrowUp") || keys.has("w");
@@ -417,7 +435,6 @@ function updatePlayer(dt){
     player.y += vy * player.speed * dt;
     player.tx = null; player.ty = null;
   } else if (player.tx != null && player.ty != null){
-    // move toward target (mobile drag)
     const dx = player.tx - player.x;
     const dy = player.ty - player.y;
     const d = Math.hypot(dx, dy);
@@ -428,7 +445,6 @@ function updatePlayer(dt){
     }
   }
 
-  // bounds (keep inside store)
   const pad = 24;
   player.x = clamp(player.x, pad, W - pad);
   player.y = clamp(player.y, pad + 24, H - pad);
@@ -436,8 +452,6 @@ function updatePlayer(dt){
 
 // -------------------- World drawing (warm record-store vibe) --------------------
 function drawBackground(){
-  // subtle vignette + warm floor + walls
-  // wall
   const wallGrad = ctx.createLinearGradient(0, 0, 0, H);
   wallGrad.addColorStop(0, "rgba(255,220,170,0.10)");
   wallGrad.addColorStop(0.55, "rgba(0,0,0,0.10)");
@@ -445,7 +459,6 @@ function drawBackground(){
   ctx.fillStyle = wallGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // wood floor zone (lower half)
   const fy = H*0.55;
   const floor = ctx.createLinearGradient(0, fy, 0, H);
   floor.addColorStop(0, "rgba(160,110,60,0.18)");
@@ -453,7 +466,6 @@ function drawBackground(){
   ctx.fillStyle = floor;
   ctx.fillRect(0, fy, W, H - fy);
 
-  // floor boards
   ctx.globalAlpha = 0.12;
   for (let i=0;i<14;i++){
     const y = fy + i * 16;
@@ -462,7 +474,6 @@ function drawBackground(){
   }
   ctx.globalAlpha = 1;
 
-  // sunbeams
   ctx.save();
   ctx.globalAlpha = 0.12;
   ctx.translate(W*0.78, H*0.12);
@@ -474,9 +485,7 @@ function drawBackground(){
   ctx.fillRect(-40, 0, 70, H);
   ctx.fillRect(60, 0, 80, H);
   ctx.restore();
-  ctx.globalAlpha = 1;
 
-  // dust motes
   ctx.globalAlpha = 0.22;
   ctx.fillStyle = "white";
   for (const p of dust){
@@ -486,7 +495,6 @@ function drawBackground(){
   }
   ctx.globalAlpha = 1;
 
-  // vignette
   const g = ctx.createRadialGradient(W/2, H/2, 80, W/2, H/2, 520);
   g.addColorStop(0, "rgba(0,0,0,0)");
   g.addColorStop(1, "rgba(0,0,0,0.35)");
@@ -495,7 +503,6 @@ function drawBackground(){
 }
 
 function drawStationBox(x,y,w,h,label,sub){
-  // base shadow
   ctx.save();
   ctx.translate(x, y);
 
@@ -506,7 +513,6 @@ function drawStationBox(x,y,w,h,label,sub){
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  // glass card
   const card = ctx.createLinearGradient(0, -h/2, 0, h/2);
   card.addColorStop(0, "rgba(255,255,255,0.10)");
   card.addColorStop(1, "rgba(0,0,0,0.22)");
@@ -518,7 +524,6 @@ function drawStationBox(x,y,w,h,label,sub){
   ctx.fill();
   ctx.stroke();
 
-  // label
   ctx.font = "900 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
   ctx.fillStyle = "rgba(255,255,255,0.88)";
   ctx.textAlign = "center";
@@ -533,7 +538,6 @@ function drawStationBox(x,y,w,h,label,sub){
 }
 
 function drawPlayer(){
-  // shadow
   ctx.globalAlpha = 0.30;
   ctx.fillStyle = "rgba(0,0,0,0.7)";
   ctx.beginPath();
@@ -541,7 +545,6 @@ function drawPlayer(){
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  // body
   const glow = ctx.createRadialGradient(player.x, player.y-6, 2, player.x, player.y-6, 28);
   glow.addColorStop(0, "rgba(124,60,255,0.35)");
   glow.addColorStop(1, "rgba(0,0,0,0)");
@@ -555,13 +558,11 @@ function drawPlayer(){
   ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
   ctx.fill();
 
-  // hat
   ctx.fillStyle = "rgba(124,60,255,0.95)";
   ctx.beginPath();
   ctx.arc(player.x, player.y - 14, 7, 0, Math.PI*2);
   ctx.fill();
 
-  // carry indicator
   if (player.carry > 0){
     ctx.font = "900 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
     ctx.fillStyle = "rgba(255,255,255,0.92)";
@@ -573,7 +574,7 @@ function drawPlayer(){
 function drawCustomers(){
   for (let i=0;i<queue.customers.length;i++){
     const cu = queue.customers[i];
-    // shadow
+
     ctx.globalAlpha = 0.22;
     ctx.fillStyle = "rgba(0,0,0,0.7)";
     ctx.beginPath();
@@ -581,13 +582,11 @@ function drawCustomers(){
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // body
     ctx.fillStyle = "rgba(255,255,255,0.78)";
     ctx.beginPath();
     ctx.arc(cu.x, cu.y, cu.r, 0, Math.PI*2);
     ctx.fill();
 
-    // tiny “want” bubble for first customer
     if (i === 0){
       ctx.fillStyle = "rgba(0,0,0,0.35)";
       ctx.strokeStyle = "rgba(255,255,255,0.10)";
@@ -607,21 +606,22 @@ function drawCustomers(){
 function drawWorld(){
   drawBackground();
 
-  // stations
   drawStationBox(store.crate.x, store.crate.y, store.crate.w, store.crate.h, store.crate.label, "");
-  // shelves (show stock)
   for (const s of store.shelves){
     drawStationBox(s.x, s.y, s.w, s.h, s.label, `${s.stock}/${s.cap}`);
   }
-  drawStationBox(store.register.x, store.register.y, store.register.w, store.register.h, store.register.label, queue.customers.length ? `Queue ${queue.customers.length}` : "");
+  drawStationBox(
+    store.register.x, store.register.y,
+    store.register.w, store.register.h,
+    store.register.label,
+    queue.customers.length ? `Queue ${queue.customers.length}` : ""
+  );
 
-  // directional arrows when relevant
   ctx.globalAlpha = 0.85;
   ctx.font = "900 18px system-ui";
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(87,255,147,0.92)";
 
-  // show arrow to next best station
   if (player.carry === 0 && totalShelfStock() === 0){
     ctx.fillText("⬇", store.crate.x, store.crate.y - 46);
   } else if (totalShelfStock() === 0 && player.carry > 0){
@@ -632,11 +632,9 @@ function drawWorld(){
   }
   ctx.globalAlpha = 1;
 
-  // customers + player on top
   drawCustomers();
   drawPlayer();
 
-  // interact hint if near something
   const nearCrate = nearRect(player, store.crate);
   const nearReg = nearRect(player, store.register);
   const nearShelf = store.shelves.find(s => nearRect(player, s));
@@ -651,8 +649,7 @@ function drawWorld(){
 }
 
 // -------------------- Reset / Loop --------------------
-function reset(hard){
-  // hard restart day
+function reset(){
   cash = 0;
   xp = 0;
   xpNeed = 10;
@@ -672,7 +669,6 @@ function reset(hard){
 }
 
 function step(dt){
-  // dust drift
   for (const p of dust){
     p.y += p.s * dt;
     p.x += Math.sin((p.y + p.x) * 0.01) * 6 * dt;
@@ -681,7 +677,6 @@ function step(dt){
     if (p.x > W + 10) p.x = -10;
   }
 
-  // toast timer
   if (toastTimer > 0){
     toastTimer -= dt;
     if (toastTimer <= 0 && toastEl) toastEl.classList.remove("show");
@@ -701,4 +696,81 @@ function loop(t){
   requestAnimationFrame(loop);
 }
 
-// ----------
+// -------------------- INPUT (THIS IS WHAT YOU WERE MISSING) --------------------
+// Keyboard
+window.addEventListener("keydown", (e) => {
+  const k = e.key;
+  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","w","a","s","d","W","A","S","D"].includes(k)) {
+    keys.add(k.length === by swapping from uppercase to lowercase? k.toLowerCase() : k);
+    // prevent page scroll on arrows
+    if (k.startsWith("Arrow")) e.preventDefault();
+  }
+  if (k === " " || k === "Enter") {
+    // quick interact with nearest station
+    // pick nearest by checking proximity
+    if (nearRect(player, store.crate)) interactCrate();
+    else if (store.shelves.find(s => nearRect(player, s))) interactShelf(store.shelves.find(s => nearRect(player, s)));
+    else if (nearRect(player, store.register)) interactRegister();
+  }
+}, { passive:false });
+
+window.addEventListener("keyup", (e) => {
+  const k = e.key;
+  keys.delete(k);
+  keys.delete(k.toLowerCase());
+});
+
+// Pointer (tap to interact, drag to move)
+let pointerDown = false;
+let downX = 0, downY = 0, downT = 0;
+
+c.addEventListener("pointerdown", (e) => {
+  if (settingsPanel && settingsPanel.classList.contains("show")) return; // ignore when panel open
+  pointerDown = true;
+  downT = performance.now();
+  const p = canvasXY(e);
+  downX = p.x; downY = p.y;
+
+  // set immediate target so drag feels responsive
+  player.tx = p.x;
+  player.ty = p.y;
+
+  // unlock audio on first interaction (iOS)
+  ensureAudio();
+
+  c.setPointerCapture?.(e.pointerId);
+}, { passive:true });
+
+c.addEventListener("pointermove", (e) => {
+  if (!pointerDown) return;
+  const p = canvasXY(e);
+  player.tx = p.x;
+  player.ty = p.y;
+}, { passive:true });
+
+c.addEventListener("pointerup", (e) => {
+  if (!pointerDown) return;
+  pointerDown = false;
+
+  const p = canvasXY(e);
+  const dt = performance.now() - downT;
+  const moved = Math.hypot(p.x - downX, p.y - downY);
+
+  // A "tap" = short + small movement => interact
+  if (dt < 250 && moved < 12) {
+    const did = tryInteractAt(p.x, p.y);
+    if (!did) {
+      // tap empty space just sets target
+      player.tx = p.x;
+      player.ty = p.y;
+    }
+  }
+}, { passive:true });
+
+c.addEventListener("pointercancel", () => { pointerDown = false; }, { passive:true });
+
+// -------------------- START --------------------
+if (btnMusic) btnMusic.textContent = "▶ Music";
+syncHUD();
+reset();
+requestAnimationFrame(loop);
