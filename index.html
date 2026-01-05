@@ -39,9 +39,12 @@
           <div class="actions">
             <button id="btnRestart" class="btn" type="button">Restart</button>
             <button id="btnMusic" class="btn ghost" type="button">▶ Music</button>
+
+            <!-- ✅ NEW: Helper / How-To button -->
+            <button id="btnHelp" class="btn ghost" type="button">❔ Help</button>
           </div>
 
-          <div class="tip">
+          <div class="tip" id="helpTip">
             Tip: On mobile, tap the top half to shoot. Tap left/right sides to move.
           </div>
         </div>
@@ -55,5 +58,32 @@
     </div>
 
     <script src="game.js"></script>
+
+    <!-- ✅ NEW: Tiny helper toggle script (no game.js edits required) -->
+    <script>
+      (function () {
+        const btn = document.getElementById("btnHelp");
+        const tip = document.getElementById("helpTip");
+        if (!btn || !tip) return;
+
+        const full =
+          "Mobile: tap TOP half to shoot • tap LEFT/RIGHT sides to move. " +
+          "Desktop: ←/→ or A/D to move • Space to zap • M music • R restart.";
+
+        let open = false;
+
+        function render() {
+          tip.textContent = open ? full : "Tip: On mobile, tap the top half to shoot. Tap left/right sides to move.";
+          btn.textContent = open ? "✖ Close" : "❔ Help";
+        }
+
+        btn.addEventListener("click", () => {
+          open = !open;
+          render();
+        });
+
+        render();
+      })();
+    </script>
   </body>
 </html>
