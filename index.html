@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KornDog Arcade Lab</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div class="brand">
+          <div class="dot"></div>
+          <div>
+            <h1>KornDog Arcade Lab</h1>
+            <p>Retro vibes. Original game. No DMCA jumpscares.</p>
+          </div>
+        </div>
+
+        <div class="hud">
+          <div class="pill"><span>Score</span><strong id="score">0</strong></div>
+          <div class="pill"><span>Lives</span><strong id="lives">3</strong></div>
+          <div class="pill"><span>Wave</span><strong id="wave">1</strong></div>
+        </div>
+      </header>
+
+      <main class="stage">
+        <canvas id="game" width="360" height="560" aria-label="Game canvas"></canvas>
+
+        <div class="help">
+          <div class="keys">
+            <div><kbd>←</kbd><kbd>→</kbd> Move</div>
+            <div><kbd>Space</kbd> Zap</div>
+            <div><kbd>R</kbd> Restart</div>
+          </div>
+          <button id="btnRestart" class="btn">Restart</button>
+        </div>
+      </main>
+
+      <footer class="foot">
+        Built by KornDog Records • “Vinyl therapy, now with boss fights.”
+      </footer>
+    </div>
+
+    <script src="game.js"></script>
+  </body>
+</html>
