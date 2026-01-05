@@ -2,88 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KornDog Arcade Lab</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>KornDog Records — Idle Tycoon</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-
   <body>
-    <div class="wrap">
-      <header class="top">
-        <div class="brand">
-          <div class="dot" aria-hidden="true"></div>
-          <div>
-            <h1>KornDog Arcade Lab</h1>
-            <p>Retro vibes. Original game. No DMCA jumpscares.</p>
-          </div>
+    <div class="hud">
+      <button class="icon-btn" id="btnSettings" aria-label="Settings">⚙️</button>
+
+      <div class="xp">
+        <div class="star">⭐</div>
+        <div class="bar">
+          <div class="fill" id="xpFill" style="width:0%"></div>
+          <div class="txt"><span id="xpNow">0</span>/<span id="xpNeed">5</span></div>
         </div>
+      </div>
 
-        <div class="hud" aria-label="Game stats">
-          <div class="pill"><span>Score</span><strong id="score">0</strong></div>
-          <div class="pill"><span>Lives</span><strong id="lives">3</strong></div>
-          <div class="pill"><span>Wave</span><strong id="wave">1</strong></div>
-        </div>
-      </header>
-
-      <main class="stage">
-        <canvas id="game" width="360" height="560" aria-label="Game canvas"></canvas>
-
-        <div class="help" aria-label="Controls and actions">
-          <div class="keys">
-            <div><kbd>←</kbd><kbd>→</kbd> Move</div>
-            <div><kbd>Space</kbd> Zap</div>
-            <div><kbd>R</kbd> Restart</div>
-            <div><kbd>M</kbd> Music</div>
-          </div>
-
-          <div class="actions">
-            <button id="btnRestart" class="btn" type="button">Restart</button>
-            <button id="btnMusic" class="btn ghost" type="button">▶ Music</button>
-
-            <!-- ✅ NEW: Helper / How-To button -->
-            <button id="btnHelp" class="btn ghost" type="button">❔ Help</button>
-          </div>
-
-          <div class="tip" id="helpTip">
-            Tip: On mobile, tap the top half to shoot. Tap left/right sides to move.
-          </div>
-        </div>
-      </main>
-
-      <footer class="foot">
-        Built by
-        <a href="https://korndogrecords.com" target="_blank" rel="noopener">KornDog Records</a>
-        • “Vinyl therapy, now with boss fights.”
-      </footer>
+      <div class="cash">
+        <div class="bill">💵</div>
+        <div class="amt" id="cash">$0</div>
+      </div>
     </div>
 
+    <div class="task" id="taskBar">
+      <div class="taskIcon" id="taskIcon">📦</div>
+      <div class="taskText" id="taskText">Pick up records</div>
+    </div>
+
+    <div class="wrap">
+      <canvas id="game" width="420" height="760" aria-label="KornDog Idle Game"></canvas>
+      <div class="hint">Drag / WASD to move. Tap stations to interact.</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
     <script src="game.js"></script>
-
-    <!-- ✅ NEW: Tiny helper toggle script (no game.js edits required) -->
-    <script>
-      (function () {
-        const btn = document.getElementById("btnHelp");
-        const tip = document.getElementById("helpTip");
-        if (!btn || !tip) return;
-
-        const full =
-          "Mobile: tap TOP half to shoot • tap LEFT/RIGHT sides to move. " +
-          "Desktop: ←/→ or A/D to move • Space to zap • M music • R restart.";
-
-        let open = false;
-
-        function render() {
-          tip.textContent = open ? full : "Tip: On mobile, tap the top half to shoot. Tap left/right sides to move.";
-          btn.textContent = open ? "✖ Close" : "❔ Help";
-        }
-
-        btn.addEventListener("click", () => {
-          open = !open;
-          render();
-        });
-
-        render();
-      })();
-    </script>
   </body>
 </html>
