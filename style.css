@@ -144,3 +144,38 @@ canvas, #game, #canvas, .game-canvas{
 button, a, .btn{
   -webkit-tap-highlight-color: transparent;
 }
+/* =========================================
+   GOOGLE PIXEL (9 / 10 / Pro) OVERRIDE
+   ========================================= */
+
+@media (max-width: 480px) and (min-height: 800px){
+
+  .wrap, .game-wrap, #gameWrap, #wrap{
+    height: calc(100vh - 170px); /* more vertical room */
+    margin-top: 84px;
+    padding: 8px;
+  }
+
+  canvas, #game, #canvas, .game-canvas{
+    width: 98vw !important;
+
+    /* Pixel sweet spot */
+    transform: scale(2.15) !important;
+    transform-origin: center center !important;
+
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /* Keep HUD readable but not massive */
+  .hud, #hud{
+    padding: 8px 10px;
+    border-radius: 16px;
+  }
+
+  /* Move hint slightly up so it doesn't crowd */
+  .hint, #hint{
+    bottom: 24px;
+    font-size: 13px;
+  }
+}
