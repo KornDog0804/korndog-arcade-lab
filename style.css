@@ -256,3 +256,17 @@ body {
   line-height: 1.35;
   font-weight: 800;
 }
+/* --- GAME SCALE FIX --- */
+.wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#game {
+  width: 100vw;
+  max-width: 480px;
+  height: auto;
+  image-rendering: pixelated;
+}
+/* ---------------------- */
