@@ -1,6 +1,8 @@
 // ===============================
 // KornDog Arcade — Vinyl Blaster
-// Full copy/paste game.js
+// Full copy/paste game.js (UPDATED)
+// Fixes: wave progression + mobile stuck movement
+// Includes: original 8-bit music + SFX
 // ===============================
 
 const c = document.getElementById("game");
@@ -24,6 +26,9 @@ let wave = 1;
 let last = 0;
 let cooldown = 0;
 
+// Wave pacing (prevents the score%wave bug)
+let nextWaveScore = 120;
+
 // -------------------- AUDIO (ORIGINAL 8-BIT) --------------------
 let audioCtx = null;
 let musicOn = false;
@@ -33,7 +38,6 @@ function ensureAudio() {
   const Ctx = window.AudioContext || window.webkitAudioContext;
   if (!Ctx) return null;
   if (!audioCtx) audioCtx = new Ctx();
-  // some browsers start suspended until user gesture
   if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
   return audioCtx;
 }
@@ -71,19 +75,16 @@ function playTone({ type = "square", freq = 440, dur = 0.12, vol = 0.08, when = 
 
 // SFX
 function sfxShoot() {
-  // quick zappy pew
   playTone({ type: "square", freq: 880, dur: 0.06, vol: 0.05, lp: 6500 });
   playTone({ type: "square", freq: 660, dur: 0.07, vol: 0.04, when: 0.01, lp: 6500 });
 }
 
 function sfxHit() {
-  // tiny “tick” + noise-ish burst feel
   playTone({ type: "triangle", freq: 240, dur: 0.05, vol: 0.06, lp: 4000 });
   playTone({ type: "square", freq: 120, dur: 0.06, vol: 0.035, when: 0.01, lp: 2800 });
 }
 
 function sfxExplosion() {
-  // punchy thump
   playTone({ type: "sine", freq: 140, dur: 0.10, vol: 0.09, lp: 2200 });
   playTone({ type: "sine", freq: 80, dur: 0.12, vol: 0.07, when: 0.02, lp: 1800 });
 }
@@ -146,7 +147,6 @@ function toggleMusic(force) {
   if (btnMusic) btnMusic.textContent = musicOn ? "⏸ Music" : "▶ Music";
 }
 
-// If there is a music button, hook it
 if (btnMusic) btnMusic.addEventListener("click", () => toggleMusic());
 
 // -------------------- GAME STATE --------------------
@@ -204,10 +204,13 @@ function reset(hard = false) {
   score = hard ? 0 : score;
   lives = 3;
   wave = 1;
+  nextWaveScore = 120;
+
   bullets = [];
   sparks = [];
   player.x = W / 2;
   cooldown = 0;
+
   spawnWave(8);
   syncHUD();
 }
@@ -221,10 +224,7 @@ function syncHUD() {
 function fire() {
   if (cooldown > 0) return;
   cooldown = 0.18;
-
   bullets.push({ x: player.x, y: player.y - 18, vy: -420, r: 4 });
-
-  // SFX: only after user has interacted at least once
   sfxShoot();
 }
 
@@ -300,9 +300,10 @@ function step(dt) {
     s.vy += 260 * dt;
   }
 
-  // wave clear (score-based pacing)
-  if (score > 0 && score % (120 * wave) === 0) {
+  // ✅ wave progression (no modulo double-trigger)
+  if (score >= nextWaveScore) {
     wave += 1;
+    nextWaveScore += 120 * wave;
     spawnWave(7 + wave);
     syncHUD();
     pop(W / 2, H / 3, 30);
@@ -382,12 +383,11 @@ function loop(t) {
 
 // -------------------- INPUT --------------------
 window.addEventListener("keydown", (e) => {
-  // IMPORTANT: first user gesture can start audio
   ensureAudio();
 
   if (e.key === " ") { e.preventDefault(); fire(); return; }
   if (e.key.toLowerCase() === "r") { reset(true); return; }
-  if (e.key.toLowerCase() === "m") { toggleMusic(); return; } // press M for music
+  if (e.key.toLowerCase() === "m") { toggleMusic(); return; }
   keys.add(e.key);
 });
 
@@ -395,7 +395,7 @@ window.addEventListener("keyup", (e) => keys.delete(e.key));
 
 // mobile: tap left/right + tap top half to shoot
 c.addEventListener("pointerdown", (e) => {
-  ensureAudio(); // user gesture => unlock audio on mobile
+  ensureAudio();
 
   const rect = c.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -419,9 +419,12 @@ c.addEventListener("pointercancel", () => {
   keys.delete("ArrowRight");
 });
 
+// ✅ mobile “stuck movement” fix
+window.addEventListener("blur", () => keys.clear());
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) keys.clear();
+});
+
 // -------------------- START --------------------
 reset(true);
 requestAnimationFrame(loop);
-
-// Optional: start music automatically AFTER first click if you want.
-// Right now: user hits M or the Music button.
