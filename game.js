@@ -1,9 +1,3 @@
-// =============================================
-// KornDog Record Store — Plain Netlify (Three.js)
-// Fixed front camera • move • stock • checkout
-// Full copy/paste game.js (ES module)
-// =============================================
-
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
 const canvas = document.getElementById("game");
@@ -12,362 +6,330 @@ const canvas = document.getElementById("game");
 const xpFill = document.getElementById("xpFill");
 const xpText = document.getElementById("xpText");
 const cashEl = document.getElementById("cash");
-const taskIconEl = document.getElementById("taskIcon");
-const taskTextEl = document.getElementById("taskText");
 const toastEl = document.getElementById("toast");
 
+const actionBubble = document.getElementById("actionBubble");
+const actionIcon = document.getElementById("actionIcon");
+const actionText = document.getElementById("actionText");
+const bigArrow = document.getElementById("bigArrow");
+
+// Settings
 const btnSettings = document.getElementById("btnSettings");
 const btnCloseSettings = document.getElementById("btnCloseSettings");
 const settingsPanel = document.getElementById("settingsPanel");
 const btnMusic = document.getElementById("btnMusic");
 const btnRestart = document.getElementById("btnRestart");
 
-// ---------- Helpers ----------
+// Joystick
+const joyBase = document.getElementById("joyBase");
+const joyKnob = document.getElementById("joyKnob");
+
+// Helpers
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const rand = (a,b)=>Math.random()*(b-a)+a;
 
-let toastTimer = 0;
+let toastTimer=0;
 function toast(msg){
   toastEl.textContent = msg;
   toastEl.classList.add("show");
-  toastTimer = 1.35;
+  toastTimer = 1.25;
 }
 
-// ---------- Audio (original, safe) ----------
-let audioCtx = null;
-let musicOn = false;
-let musicTimer = null;
-
+// ---------- Audio ----------
+let audioCtx=null, musicOn=false, musicTimer=null;
 function ensureAudio(){
   const AC = window.AudioContext || window.webkitAudioContext;
   if(!AC) return null;
   if(!audioCtx) audioCtx = new AC();
-  if(audioCtx.state === "suspended") audioCtx.resume().catch(()=>{});
+  if(audioCtx.state==="suspended") audioCtx.resume().catch(()=>{});
   return audioCtx;
 }
 function midiToFreq(m){ return 440 * Math.pow(2,(m-69)/12); }
-
 function playTone({type="triangle", freq=440, dur=0.12, vol=0.05, when=0, lp=8000}){
-  const ac = ensureAudio(); if(!ac) return;
-  const t0 = ac.currentTime + when;
-
-  const osc = ac.createOscillator();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, t0);
-
-  const g = ac.createGain();
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.linearRampToValueAtTime(vol, t0 + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
-  const f = ac.createBiquadFilter();
-  f.type="lowpass";
-  f.frequency.setValueAtTime(lp, t0);
-
+  const ac=ensureAudio(); if(!ac) return;
+  const t0=ac.currentTime+when;
+  const osc=ac.createOscillator(); osc.type=type; osc.frequency.setValueAtTime(freq,t0);
+  const g=ac.createGain();
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.linearRampToValueAtTime(vol,t0+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  const f=ac.createBiquadFilter(); f.type="lowpass"; f.frequency.setValueAtTime(lp,t0);
   osc.connect(f); f.connect(g); g.connect(ac.destination);
-  osc.start(t0); osc.stop(t0 + dur + 0.02);
+  osc.start(t0); osc.stop(t0+dur+0.02);
 }
-
 function sfxPickup(){ playTone({type:"square", freq:880, dur:0.05, vol:0.035, lp:6500}); }
 function sfxPlace(){ playTone({type:"triangle", freq:520, dur:0.08, vol:0.04, lp:5000}); }
 function sfxCash(){
   playTone({type:"square", freq:988, dur:0.06, vol:0.04, lp:7000});
   playTone({type:"square", freq:1175, dur:0.08, vol:0.03, when:0.03, lp:7000});
 }
-
 function startMusic(){
   if(musicTimer) return;
-  const bpm = 96;
-  const stepDur = 60/bpm/4;
-  let step = 0;
-
-  // Original lo-fi loop (safe)
-  const chord = [57, 60, 64, 60, 57, 60, 64, 67];
-  const bass  = [45, null, null, null, 43, null, null, null];
-  const lead  = [69, null, 67, null, 69, null, 72, null, 71, null, 69, null, 67, null, 64, null];
-
-  musicTimer = setInterval(()=>{
+  const bpm=96, stepDur=60/bpm/4;
+  let step=0;
+  const chord=[57,60,64,60,57,60,64,67];
+  const bass=[45,null,null,null,43,null,null,null];
+  const lead=[69,null,67,null,69,null,72,null,71,null,69,null,67,null,64,null];
+  musicTimer=setInterval(()=>{
     if(!musicOn) return;
-
-    const cn = chord[step % chord.length];
-    playTone({type:"triangle", freq:midiToFreq(cn), dur:stepDur*0.85, vol:0.018, lp:5200});
-
-    const bn = bass[step % bass.length];
-    if(bn != null) playTone({type:"square", freq:midiToFreq(bn), dur:stepDur*2.8, vol:0.028, lp:2200});
-
-    const ln = lead[step % lead.length];
-    if(ln != null) playTone({type:"sine", freq:midiToFreq(ln), dur:stepDur*1.1, vol:0.016, lp:4800});
-
+    playTone({type:"triangle", freq:midiToFreq(chord[step%chord.length]), dur:stepDur*0.85, vol:0.018, lp:5200});
+    const bn=bass[step%bass.length];
+    if(bn!=null) playTone({type:"square", freq:midiToFreq(bn), dur:stepDur*2.8, vol:0.028, lp:2200});
+    const ln=lead[step%lead.length];
+    if(ln!=null) playTone({type:"sine", freq:midiToFreq(ln), dur:stepDur*1.1, vol:0.016, lp:4800});
     step++;
   }, stepDur*1000);
 }
-
-function stopMusic(){
-  if(musicTimer) clearInterval(musicTimer);
-  musicTimer = null;
-}
-
+function stopMusic(){ if(musicTimer) clearInterval(musicTimer); musicTimer=null; }
 function toggleMusic(force){
   ensureAudio();
-  musicOn = typeof force === "boolean" ? force : !musicOn;
+  musicOn = typeof force==="boolean" ? force : !musicOn;
   if(musicOn) startMusic(); else stopMusic();
   btnMusic.textContent = musicOn ? "⏸ Music" : "▶ Music";
 }
 
-// ---------- Settings panel ----------
+// Settings panel
 function openSettings(open){
-  const on = typeof open === "boolean" ? open : !settingsPanel.classList.contains("open");
+  const on = typeof open==="boolean" ? open : !settingsPanel.classList.contains("open");
   settingsPanel.classList.toggle("open", on);
   settingsPanel.setAttribute("aria-hidden", on ? "false" : "true");
 }
-
 btnSettings.addEventListener("click", ()=>openSettings(true));
 btnCloseSettings.addEventListener("click", ()=>openSettings(false));
-settingsPanel.addEventListener("click",(e)=>{ if(e.target === settingsPanel) openSettings(false); });
+settingsPanel.addEventListener("click",(e)=>{ if(e.target===settingsPanel) openSettings(false); });
 btnMusic.addEventListener("click", ()=>toggleMusic());
-btnRestart.addEventListener("click", ()=>reset(true));
+btnRestart.addEventListener("click", ()=>reset());
 
 // ---------- Game state ----------
 const state = {
-  cash: 0,
-  xp: 0,
-  xpNeed: 10,
-  carry: 0,
-  carryMax: 6,
-  shelves: [
-    { stock: 0, cap: 18 },
-    { stock: 0, cap: 18 },
-    { stock: 0, cap: 24 },
+  cash:0,
+  xp:0,
+  xpNeed:5,
+  carry:0,
+  carryMax:4,
+  shelves:[
+    {stock:0, cap:6},
+    {stock:0, cap:6},
+    {stock:0, cap:8},
   ],
-  customers: [],
-  spawnTimer: 1.0,
+  customers:[],
+  spawnTimer:1.0,
 };
 
-function totalShelfStock(){
-  return state.shelves.reduce((a,s)=>a+s.stock,0);
-}
-
-function setTask(icon, text){
-  taskIconEl.textContent = icon;
-  taskTextEl.textContent = text;
-}
-
-function updateTask(){
-  if(state.carry === 0 && totalShelfStock() === 0){ setTask("📦","Pick up records"); return; }
-  if(totalShelfStock() === 0 && state.carry > 0){ setTask("🧱","Fill the shelves"); return; }
-  if(state.customers.length > 0){ setTask("🧾","Check out customers"); return; }
-  setTask("✨","Keep stocking to attract customers");
-}
+const totalShelfStock = ()=>state.shelves.reduce((a,s)=>a+s.stock,0);
 
 function syncHUD(){
   cashEl.textContent = `$${state.cash}`;
-  const pct = clamp((state.xp/state.xpNeed)*100, 0, 100);
+  const pct = clamp((state.xp/state.xpNeed)*100,0,100);
   xpFill.style.width = `${pct}%`;
   xpText.textContent = `${state.xp}/${state.xpNeed}`;
-  updateTask();
 }
 
 function gainXP(n){
   state.xp += n;
   if(state.xp >= state.xpNeed){
     state.xp -= state.xpNeed;
-    state.xpNeed = Math.floor(state.xpNeed*1.15)+2;
+    state.xpNeed = Math.floor(state.xpNeed*1.35)+1;
     toast("LEVEL UP! ⭐");
-    if(state.carryMax < 10 && Math.random() < 0.65){
+    if(state.carryMax < 10 && Math.random() < 0.7){
       state.carryMax += 1;
-      toast(`Carry upgraded: ${state.carryMax}`);
+      toast(`Carry +1 (now ${state.carryMax})`);
     }
   }
+  syncHUD();
 }
 
-// ---------- Three.js scene ----------
+// ---------- Scene (Isometric / Orthographic feel) ----------
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 
-// Camera: fixed “front of store”
-const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
-camera.position.set(0, 10.5, 18.5);   // front + elevated
-camera.lookAt(0, 0.6, -4.5);          // toward back
+// Ortho camera = “mobile tycoon look”
+const camera = new THREE.OrthographicCamera(-8, 8, 12, -12, 0.1, 200);
+// Isometric-ish angle
+camera.position.set(14, 18, 14);
+camera.lookAt(0, 0, 0);
 
 // Lights
-scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+scene.add(new THREE.AmbientLight(0xffffff, 0.85));
 
-const key = new THREE.DirectionalLight(0xffffff, 0.85);
-key.position.set(8, 14, 10);
-scene.add(key);
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(20, 30, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.left = -25;
+sun.shadow.camera.right = 25;
+sun.shadow.camera.top = 25;
+sun.shadow.camera.bottom = -25;
+scene.add(sun);
 
-const neon1 = new THREE.PointLight(0x7c3cff, 0.9, 60);
-neon1.position.set(-7, 6, -5);
-scene.add(neon1);
+// Materials (toon-ish)
+const matFloor = new THREE.MeshLambertMaterial({ color: 0xcfe7ff });
+const matTileA = new THREE.MeshLambertMaterial({ color: 0xdaf0ff });
+const matTileB = new THREE.MeshLambertMaterial({ color: 0xc7e3ff });
 
-const neon2 = new THREE.PointLight(0x57ff93, 0.8, 60);
-neon2.position.set(7, 6, -7);
-scene.add(neon2);
+const matShelf = new THREE.MeshLambertMaterial({ color: 0xead7c6 });
+const matShelfTop = new THREE.MeshLambertMaterial({ color: 0xf3e6dc });
 
-// Materials
-const matFloor = new THREE.MeshStandardMaterial({ color:0x140b24, roughness:0.95, metalness:0.0 });
-const matWall  = new THREE.MeshStandardMaterial({ color:0x0b1020, roughness:1.0, metalness:0.0 });
-const matGlass = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.25, metalness:0.15, transparent:true, opacity:0.22 });
+const matCrate = new THREE.MeshLambertMaterial({ color: 0x57ff93 });
+const matRegister = new THREE.MeshLambertMaterial({ color: 0x7c3cff });
 
-const matCrate = new THREE.MeshStandardMaterial({ color:0x57ff93, roughness:0.55, metalness:0.05, emissive:0x0a2a18, emissiveIntensity:0.4 });
-const matRegister = new THREE.MeshStandardMaterial({ color:0x7c3cff, roughness:0.55, metalness:0.05, emissive:0x200a44, emissiveIntensity:0.35 });
-const matShelf = new THREE.MeshStandardMaterial({ color:0x1b1b1b, roughness:0.85, metalness:0.05 });
-const matPlayer = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.35, metalness:0.05, emissive:0x101010, emissiveIntensity:0.2 });
-const matCust = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.55, metalness:0.0, transparent:true, opacity:0.85 });
+const matPlayer = new THREE.MeshLambertMaterial({ color: 0xff4d4d });
+const matCap = new THREE.MeshLambertMaterial({ color: 0xff2f2f });
 
-// Store bounds / ground
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 26), matFloor);
-floor.rotation.x = -Math.PI/2;
-floor.position.set(0, 0, -4);
-floor.name = "floor";
-scene.add(floor);
+const matCustomer = new THREE.MeshLambertMaterial({ color: 0xffffff });
 
-// Back wall
-const backWall = new THREE.Mesh(new THREE.BoxGeometry(20, 6, 0.5), matWall);
-backWall.position.set(0, 3, -17);
-scene.add(backWall);
+// Floor + tiled pattern (cheap + looks like your screenshots)
+const floorGroup = new THREE.Group();
+scene.add(floorGroup);
 
-// Side walls
-const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6, 26), matWall);
-leftWall.position.set(-10, 3, -4);
-scene.add(leftWall);
+const tileSize = 2;
+const tilesX = 8;
+const tilesZ = 10;
+for(let x=0; x<tilesX; x++){
+  for(let z=0; z<tilesZ; z++){
+    const tile = new THREE.Mesh(
+      new THREE.BoxGeometry(tileSize, 0.2, tileSize),
+      ((x+z)%2===0) ? matTileA : matTileB
+    );
+    tile.position.set((x - tilesX/2)*tileSize + tileSize/2, -0.1, (z - tilesZ/2)*tileSize + tileSize/2);
+    tile.receiveShadow = true;
+    tile.name = "floor";
+    floorGroup.add(tile);
+  }
+}
 
-const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6, 26), matWall);
-rightWall.position.set(10, 3, -4);
-scene.add(rightWall);
+// Walls (top/right edges)
+const wallMat = new THREE.MeshLambertMaterial({ color: 0xf7f7f7 });
+const wall1 = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 22), wallMat);
+wall1.position.set(9.5, 2, 0);
+wall1.castShadow = true; wall1.receiveShadow=true;
+scene.add(wall1);
 
-// Soft “glass” overlays (adds depth)
-const glassPanel = new THREE.Mesh(new THREE.PlaneGeometry(20, 10), matGlass);
-glassPanel.position.set(0, 4.5, 4.8);
-scene.add(glassPanel);
+const wall2 = new THREE.Mesh(new THREE.BoxGeometry(22, 4, 2), wallMat);
+wall2.position.set(0, 2, -11.5);
+wall2.castShadow = true; wall2.receiveShadow=true;
+scene.add(wall2);
 
-// Stations (positions chosen so camera sees everything)
-const station = {
-  crate: makeBox("crate", -6.5, 0.7, -6.0, 2.8, 1.4, 2.0, matCrate),
-  register: makeBox("register", 6.2, 0.8, -10.2, 4.2, 1.6, 2.4, matRegister),
-  shelves: [
-    makeShelf("shelf0", -6.2, 0.9, -13.8, 4.4, 1.8, 1.6),
-    makeShelf("shelf1",  0.0, 0.9, -13.8, 5.2, 1.8, 1.6),
-    makeShelf("shelf2",  6.2, 0.9, -13.8, 4.4, 1.8, 1.6),
-  ],
-};
-
-// Labels as little “signs”
-makeSign("CRATE", station.crate.position.x, 2.5, station.crate.position.z, 0x57ff93);
-makeSign("REGISTER", station.register.position.x, 2.6, station.register.position.z, 0x7c3cff);
-makeSign("SHELVES", 0.0, 2.8, -15.8, 0xffffff);
-
-// Player
-const player = {
-  pos: new THREE.Vector3(0, 0, -6.5),
-  vel: new THREE.Vector3(),
-  target: null, // Vector3
-  speed: 6.2,
-};
-
-const playerMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, 1.25, 18), matPlayer);
-playerMesh.position.copy(player.pos).add(new THREE.Vector3(0, 0.62, 0));
-playerMesh.name = "player";
-scene.add(playerMesh);
-
-const playerCap = new THREE.Mesh(new THREE.SphereGeometry(0.40, 16, 16), new THREE.MeshStandardMaterial({
-  color:0x7c3cff, roughness:0.35, metalness:0.05, emissive:0x220a44, emissiveIntensity:0.35
-}));
-playerCap.position.copy(playerMesh.position).add(new THREE.Vector3(0, 0.55, 0));
-scene.add(playerCap);
-
-// Customer queue spots (3D positions)
-const queueSpots = [
-  new THREE.Vector3(5.1, 0, -8.0),
-  new THREE.Vector3(4.1, 0, -7.2),
-  new THREE.Vector3(3.1, 0, -6.4),
-  new THREE.Vector3(2.1, 0, -5.6),
-];
-
-// Customer meshes container
-const customerGroup = new THREE.Group();
-scene.add(customerGroup);
-
-// ---------- Build helpers ----------
-function makeBox(name, x,y,z, w,h,d, mat){
+// Stations
+function box(name,x,y,z,w,h,d,mat){
   const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
   m.position.set(x,y,z);
-  m.name = name;
+  m.castShadow=true;
+  m.receiveShadow=true;
+  m.name=name;
   scene.add(m);
   return m;
 }
 
-function makeShelf(name, x,y,z, w,h,d){
-  const base = makeBox(name, x,y,z, w,h,d, matShelf);
-  // front lip
-  const lip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.25, 0.25), new THREE.MeshStandardMaterial({ color:0x2a2a2a, roughness:0.7 }));
-  lip.position.set(x, y + h/2 - 0.15, z + d/2 - 0.12);
-  scene.add(lip);
-  return base;
-}
+const crate = box("crate", -6.5, 0.6, 6.5, 2.2, 1.2, 2.2, matCrate);
+const register = box("register", 6.2, 0.7, 5.2, 3.2, 1.4, 2.2, matRegister);
 
-function makeSign(text, x,y,z, color){
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 0.9), new THREE.MeshStandardMaterial({
-    color:0x000000, transparent:true, opacity:0.35, roughness:0.2, metalness:0.0
-  }));
-  sign.position.set(x,y,z + 1.0);
-  sign.rotation.y = 0;
-  scene.add(sign);
+// Shelves (top row)
+const shelfMeshes = [
+  box("shelf0", -6.0, 0.7, -8.6, 4.2, 1.4, 1.6, matShelf),
+  box("shelf1",  0.0, 0.7, -8.6, 4.8, 1.4, 1.6, matShelf),
+  box("shelf2",  6.0, 0.7, -8.6, 4.2, 1.4, 1.6, matShelf),
+];
 
-  // Glow strip
-  const glow = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 0.08), new THREE.MeshStandardMaterial({
-    color, emissive:color, emissiveIntensity:0.9, transparent:true, opacity:0.65
-  }));
-  glow.position.set(x, y - 0.48, z + 1.01);
-  scene.add(glow);
+// Shelf tops
+shelfMeshes.forEach(s=>{
+  const top = new THREE.Mesh(new THREE.BoxGeometry(s.geometry.parameters.width, 0.25, s.geometry.parameters.depth), matShelfTop);
+  top.position.set(s.position.x, s.position.y + 0.85, s.position.z);
+  top.castShadow=true; top.receiveShadow=true;
+  scene.add(top);
+});
 
-  // No canvas text to keep simple; the sign is visual vibe. Task bar handles the words.
-}
+// Player (simple dude)
+const player = {
+  pos: new THREE.Vector3(0,0,2),
+  target: null,
+  speed: 7.0,
+};
 
-// ---------- Interactions ----------
-function canAttractCustomers(){
-  return totalShelfStock() > 0;
-}
+const playerBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 0.8, 6, 12), matPlayer);
+playerBody.position.set(player.pos.x, 0.95, player.pos.z);
+playerBody.castShadow=true;
+scene.add(playerBody);
+
+const playerHat = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16), matCap);
+playerHat.position.set(player.pos.x, 1.55, player.pos.z);
+playerHat.castShadow=true;
+scene.add(playerHat);
+
+// Customers + queue
+const customerGroup = new THREE.Group();
+scene.add(customerGroup);
+
+const queueSpots = [
+  new THREE.Vector3(4.9,0,3.6),
+  new THREE.Vector3(3.9,0,2.8),
+  new THREE.Vector3(2.9,0,2.0),
+  new THREE.Vector3(1.9,0,1.2),
+];
 
 function spawnCustomer(){
   if(state.customers.length >= queueSpots.length) return;
-
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.50, 1.05, 16), matCust);
-  mesh.position.set(-7.8 + rand(-0.3,0.3), 0.55, -2.0 + rand(-0.4,0.4));
-  mesh.name = "customer";
+  const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.7, 5, 10), matCustomer);
+  mesh.position.set(-8.0 + rand(-0.4,0.4), 0.85, 9.2 + rand(-0.4,0.4));
+  mesh.castShadow=true;
   customerGroup.add(mesh);
-
-  state.customers.push({
-    mesh,
-    speed: rand(1.4, 2.1),
-  });
+  state.customers.push({ mesh, speed: rand(2.2, 2.8) });
 }
+
+function canAttractCustomers(){ return totalShelfStock() > 0; }
 
 function updateCustomers(dt){
   state.spawnTimer -= dt;
   if(state.spawnTimer <= 0){
-    state.spawnTimer = rand(1.4, 2.6);
+    state.spawnTimer = rand(1.2, 2.2);
     if(canAttractCustomers()) spawnCustomer();
   }
 
-  // Move each customer to their queue spot
   for(let i=0;i<state.customers.length;i++){
     const cu = state.customers[i];
-    const target = queueSpots[i];
+    const tgt = queueSpots[i];
     const p = cu.mesh.position;
 
-    const tx = target.x, tz = target.z;
-    const dx = tx - p.x;
-    const dz = tz - p.z;
-    const d = Math.hypot(dx, dz);
-
-    if(d > 0.02){
+    const dx = tgt.x - p.x;
+    const dz = tgt.z - p.z;
+    const d = Math.hypot(dx,dz);
+    if(d > 0.03){
       p.x += (dx/d) * cu.speed * dt;
       p.z += (dz/d) * cu.speed * dt;
     }
   }
+}
+
+// Stock indicators (little stacks)
+const stacks = shelfMeshes.map((s,i)=>{
+  const g = new THREE.Group();
+  g.position.set(s.position.x, s.position.y + 1.05, s.position.z + 0.4);
+  scene.add(g);
+  return g;
+});
+
+function rebuildStacks(){
+  stacks.forEach((g,i)=>{
+    while(g.children.length) g.remove(g.children[0]);
+    const n = state.shelves[i].stock;
+    for(let k=0;k<n;k++){
+      const piece = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.18,16), new THREE.MeshLambertMaterial({ color:0x7c3cff }));
+      piece.position.set((k%4)*0.35 - 0.5, Math.floor(k/4)*0.2, 0);
+      piece.castShadow=true;
+      g.add(piece);
+    }
+  });
+}
+
+// Proximity + interactions
+function near(obj, dist=2.0){
+  const dx = player.pos.x - obj.position.x;
+  const dz = player.pos.z - obj.position.z;
+  return (dx*dx + dz*dz) <= dist*dist;
 }
 
 function interactCrate(){
@@ -375,170 +337,174 @@ function interactCrate(){
   const take = Math.min(2, state.carryMax - state.carry);
   state.carry += take;
   sfxPickup();
-  toast(`Picked up ${take} record${take>1?"s":""}. (${state.carry}/${state.carryMax})`);
   gainXP(1);
-  syncHUD();
+  toast(`Picked up ${take} record${take>1?"s":""}`);
 }
 
-function interactShelf(index){
+function interactShelf(idx){
   if(state.carry <= 0){ toast("No records to stock."); return; }
-  const shelf = state.shelves[index];
+  const shelf = state.shelves[idx];
   const space = shelf.cap - shelf.stock;
-  if(space <= 0){ toast("Shelf is full."); return; }
-
+  if(space <= 0){ toast("Shelf full."); return; }
   const put = Math.min(space, state.carry);
   shelf.stock += put;
   state.carry -= put;
   sfxPlace();
-  toast(`Stocked +${put}. Shelf ${shelf.stock}/${shelf.cap}`);
-  gainXP(put >= 3 ? 2 : 1);
-  syncHUD();
+  gainXP(put>=3 ? 2 : 1);
+  rebuildStacks();
+  toast(`Stocked +${put}`);
 }
 
 function takeFromAnyShelf(){
   for(const s of state.shelves){
-    if(s.stock > 0){ s.stock -= 1; return true; }
+    if(s.stock>0){ s.stock -= 1; return true; }
   }
   return false;
 }
 
 function interactRegister(){
-  if(state.customers.length === 0){ toast("No customers in line."); return; }
+  if(state.customers.length === 0){ toast("No customers."); return; }
+  if(!takeFromAnyShelf()){ toast("Out of stock."); return; }
 
-  const sold = takeFromAnyShelf();
-  if(!sold){ toast("Out of stock! Restock shelves."); return; }
-
-  const pay = Math.floor(rand(18, 38));
+  const pay = Math.floor(rand(14, 28));
   state.cash += pay;
   sfxCash();
-  toast(`Sold 1 record +$${pay}`);
-
-  // remove first customer mesh
-  const first = state.customers.shift();
-  if(first?.mesh){
-    customerGroup.remove(first.mesh);
-    first.mesh.geometry.dispose();
-    // material reused, don't dispose matCust
-  }
-
   gainXP(2);
-  syncHUD();
+  rebuildStacks();
+
+  const first = state.customers.shift();
+  customerGroup.remove(first.mesh);
+  first.mesh.geometry.dispose();
+
+  toast(`+$${pay}`);
 }
 
-// ---------- Proximity check ----------
-function near(mesh, maxDist=2.3){
-  const p = player.pos;
-  const m = mesh.position;
-  const dx = p.x - m.x;
-  const dz = p.z - m.z;
-  return (dx*dx + dz*dz) <= (maxDist*maxDist);
+// ---------- Big UI bubble + arrow logic ----------
+function showAction(icon, text){
+  actionIcon.textContent = icon;
+  actionText.textContent = text;
+  actionBubble.classList.add("show");
 }
+function hideAction(){ actionBubble.classList.remove("show"); }
 
-// ---------- Visual shelf stock bars ----------
-const stockBars = station.shelves.map((shelfMesh, i)=>{
-  const bar = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.12, 0.3),
-    new THREE.MeshStandardMaterial({ color:0x57ff93, emissive:0x57ff93, emissiveIntensity:0.35 })
-  );
-  bar.position.set(shelfMesh.position.x, shelfMesh.position.y + 1.15, shelfMesh.position.z + 0.95);
-  scene.add(bar);
-  return bar;
-});
-
-function updateStockBars(){
-  for(let i=0;i<stockBars.length;i++){
-    const shelf = state.shelves[i];
-    const pct = shelf.cap ? (shelf.stock / shelf.cap) : 0;
-    stockBars[i].scale.x = clamp(pct * 6.0, 0.2, 6.0);
+function updateGuides(){
+  // if player needs to pick up
+  if(state.carry === 0 && totalShelfStock() === 0){
+    showAction("💿", "Pick up records");
+    bigArrow.classList.add("show");
+    return;
   }
+
+  // if needs stock
+  const anySpace = state.shelves.some((s)=>s.stock < s.cap);
+  if(state.carry > 0 && anySpace){
+    showAction("📚", "Put record on shelf");
+    bigArrow.classList.add("show");
+    return;
+  }
+
+  // if customers waiting
+  if(state.customers.length > 0){
+    showAction("🧾", "Check out customers");
+    bigArrow.classList.add("show");
+    return;
+  }
+
+  hideAction();
+  bigArrow.classList.remove("show");
 }
 
-// ---------- Input ----------
+// ---------- Movement (keyboard + joystick + tap to move) ----------
 const keys = new Set();
-window.addEventListener("keydown",(e)=>{
-  ensureAudio();
-  keys.add(e.key.toLowerCase());
-  if(e.key.toLowerCase()==="m") toggleMusic();
-});
+window.addEventListener("keydown",(e)=>{ ensureAudio(); keys.add(e.key.toLowerCase()); if(e.key.toLowerCase()==="m") toggleMusic(); });
 window.addEventListener("keyup",(e)=>keys.delete(e.key.toLowerCase()));
 
+let joyVec = {x:0,y:0};
+let joyDown = false;
+let joyStart = {x:0,y:0};
+
+if(joyBase){
+  joyBase.addEventListener("pointerdown",(e)=>{
+    ensureAudio();
+    joyDown = true;
+    joyBase.setPointerCapture(e.pointerId);
+    joyStart = {x:e.clientX, y:e.clientY};
+  });
+  joyBase.addEventListener("pointermove",(e)=>{
+    if(!joyDown) return;
+    const dx = e.clientX - joyStart.x;
+    const dy = e.clientY - joyStart.y;
+    const max = 34;
+    const nx = clamp(dx / max, -1, 1);
+    const ny = clamp(dy / max, -1, 1);
+    joyVec = {x:nx, y:ny};
+    joyKnob.style.transform = `translate(${nx*34}px, ${ny*34}px)`;
+  });
+  joyBase.addEventListener("pointerup",()=>{
+    joyDown = false;
+    joyVec = {x:0,y:0};
+    joyKnob.style.transform = `translate(0px,0px)`;
+  });
+  joyBase.addEventListener("pointercancel",()=>{
+    joyDown = false;
+    joyVec = {x:0,y:0};
+    joyKnob.style.transform = `translate(0px,0px)`;
+  });
+}
+
+// Raycast for taps
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-
-function setPointerFromEvent(e){
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / rect.width;
-  const y = (e.clientY - rect.top) / rect.height;
-  pointer.x = x * 2 - 1;
-  pointer.y = -(y * 2 - 1);
+function setPointer(e){
+  const r = canvas.getBoundingClientRect();
+  pointer.x = ((e.clientX - r.left)/r.width)*2-1;
+  pointer.y = -(((e.clientY - r.top)/r.height)*2-1);
 }
-
-function raycast(objects){
+function raycast(objs){
   raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObjects(objects, true);
+  return raycaster.intersectObjects(objs, true);
 }
 
-function setMoveTarget(point){
-  // clamp inside floor bounds
-  const tx = clamp(point.x, -8.8, 8.8);
-  const tz = clamp(point.z, -15.8, 4.2);
-  player.target = new THREE.Vector3(tx, 0, tz);
-}
-
-function attemptInteract(meshName){
-  if(meshName === "crate"){
-    if(near(station.crate)) interactCrate();
-    else toast("Walk to the crate.");
-    return;
-  }
-  if(meshName === "register"){
-    if(near(station.register)) interactRegister();
-    else toast("Walk to the register.");
-    return;
-  }
-  if(meshName.startsWith("shelf")){
-    const idx = parseInt(meshName.replace("shelf",""), 10);
-    if(Number.isFinite(idx)){
-      if(near(station.shelves[idx])) interactShelf(idx);
-      else toast("Walk to a shelf.");
-    }
-  }
-}
+// For click-to-move, we just map screen click into world approx by raycasting tiles
+const floorTiles = floorGroup.children;
 
 canvas.addEventListener("pointerdown",(e)=>{
   ensureAudio();
-  canvas.setPointerCapture(e.pointerId);
+  setPointer(e);
 
-  setPointerFromEvent(e);
-
-  // Check station clicks first
-  const hits = raycast([station.crate, station.register, ...station.shelves, floor]);
+  // Stations first
+  const hits = raycast([crate, register, ...shelfMeshes, ...floorTiles]);
   if(!hits.length) return;
 
-  const first = hits[0].object;
-  const name = first.name || first.parent?.name || "";
+  const obj = hits[0].object;
+  const name = obj.name || obj.parent?.name || "";
 
-  if(name && name !== "floor"){
-    attemptInteract(name);
-    return;
+  if(name==="crate"){ near(crate) ? interactCrate() : toast("Walk to crate"); return; }
+  if(name==="register"){ near(register) ? interactRegister() : toast("Walk to register"); return; }
+  if(name.startsWith("shelf")){
+    const idx = parseInt(name.replace("shelf",""),10);
+    if(Number.isFinite(idx)){
+      near(shelfMeshes[idx]) ? interactShelf(idx) : toast("Walk to shelf");
+      return;
+    }
   }
 
-  // Move target on floor click
-  const floorHit = hits.find(h=> (h.object.name === "floor"));
-  if(floorHit) setMoveTarget(floorHit.point);
+  // Tap-to-walk on floor
+  const floorHit = hits.find(h=>h.object.name==="floor");
+  if(floorHit){
+    player.target = new THREE.Vector3(
+      clamp(floorHit.point.x, -8.5, 8.5),
+      0,
+      clamp(floorHit.point.z, -10.5, 10.5)
+    );
+  }
 });
 
-canvas.addEventListener("pointermove",(e)=>{
-  // optional: drag to set target
-  if(e.buttons !== 1) return;
-  setPointerFromEvent(e);
-  const hits = raycast([floor]);
-  if(hits[0]) setMoveTarget(hits[0].point);
-});
-
-// ---------- Movement / update ----------
+// Update player position
 function updatePlayer(dt){
   let vx=0, vz=0;
+
+  // Keyboard
   const left = keys.has("arrowleft") || keys.has("a");
   const right= keys.has("arrowright")|| keys.has("d");
   const up   = keys.has("arrowup")   || keys.has("w");
@@ -549,10 +515,14 @@ function updatePlayer(dt){
   if(up)   vz -= 1;
   if(down) vz += 1;
 
-  const usingKeys = (vx!==0 || vz!==0);
+  // Joystick overrides/adds
+  vx += joyVec.x;
+  vz += joyVec.y;
 
-  if(usingKeys){
-    const len = Math.hypot(vx,vz) || 1;
+  const usingDirect = (Math.hypot(vx,vz) > 0.05);
+
+  if(usingDirect){
+    const len = Math.hypot(vx,vz)||1;
     vx/=len; vz/=len;
     player.pos.x += vx * player.speed * dt;
     player.pos.z += vz * player.speed * dt;
@@ -562,46 +532,45 @@ function updatePlayer(dt){
     const dz = player.target.z - player.pos.z;
     const d = Math.hypot(dx,dz);
     if(d > 0.08){
-      const sp = player.speed * 0.88;
-      player.pos.x += (dx/d) * sp * dt;
-      player.pos.z += (dz/d) * sp * dt;
+      player.pos.x += (dx/d) * (player.speed*0.85) * dt;
+      player.pos.z += (dz/d) * (player.speed*0.85) * dt;
     }
   }
 
-  player.pos.x = clamp(player.pos.x, -8.8, 8.8);
-  player.pos.z = clamp(player.pos.z, -15.8, 4.2);
+  player.pos.x = clamp(player.pos.x, -8.5, 8.5);
+  player.pos.z = clamp(player.pos.z, -10.5, 10.5);
 
-  playerMesh.position.set(player.pos.x, 0.62, player.pos.z);
-  playerCap.position.set(player.pos.x, 1.17, player.pos.z);
+  playerBody.position.set(player.pos.x, 0.95, player.pos.z);
+  playerHat.position.set(player.pos.x, 1.55, player.pos.z);
 }
 
-// ---------- Loop ----------
-let last = performance.now();
-
+// Resize
 function resize(){
   const rect = canvas.getBoundingClientRect();
   const w = Math.max(2, Math.floor(rect.width));
   const h = Math.max(2, Math.floor(rect.height));
-  renderer.setSize(w, h, false);
-  camera.aspect = w / h;
+  renderer.setSize(w,h,false);
+
+  // Adjust ortho based on aspect for stable “mobile tycoon view”
+  const aspect = w/h;
+  const zoom = 10.5;
+  camera.left = -zoom*aspect;
+  camera.right = zoom*aspect;
+  camera.top = zoom;
+  camera.bottom = -zoom;
   camera.updateProjectionMatrix();
 }
-window.addEventListener("resize", resize, { passive:true });
+window.addEventListener("resize", resize, {passive:true});
 resize();
 
-// ---------- Reset ----------
+// Reset
 function reset(){
-  state.cash = 0;
-  state.xp = 0;
-  state.xpNeed = 10;
-  state.carry = 0;
-  state.carryMax = 6;
+  state.cash=0; state.xp=0; state.xpNeed=5;
+  state.carry=0; state.carryMax=4;
+  state.shelves[0].stock=0;
+  state.shelves[1].stock=0;
+  state.shelves[2].stock=0;
 
-  state.shelves[0].stock = 0;
-  state.shelves[1].stock = 0;
-  state.shelves[2].stock = 0;
-
-  // remove customers
   for(const cu of state.customers){
     customerGroup.remove(cu.mesh);
     cu.mesh.geometry.dispose();
@@ -609,34 +578,32 @@ function reset(){
   state.customers = [];
   state.spawnTimer = 1.0;
 
-  player.pos.set(0,0,-6.5);
+  player.pos.set(0,0,2);
   player.target = null;
 
-  toast("New day at KornDog Records.");
+  rebuildStacks();
   syncHUD();
-  updateStockBars();
+  toast("New day.");
 }
 reset();
 
-// ---------- Main loop ----------
+// Main loop
+let last = performance.now();
 function animate(t){
-  const dt = Math.min(0.033, (t - last)/1000);
+  const dt = Math.min(0.033, (t-last)/1000);
   last = t;
 
-  // toast timer
-  if(toastTimer > 0){
+  if(toastTimer>0){
     toastTimer -= dt;
-    if(toastTimer <= 0) toastEl.classList.remove("show");
+    if(toastTimer<=0) toastEl.classList.remove("show");
   }
 
   updatePlayer(dt);
   updateCustomers(dt);
-  updateStockBars();
+  updateGuides();
+  syncHUD();
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
-
-// start HUD
-syncHUD();
