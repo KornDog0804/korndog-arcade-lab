@@ -6,14 +6,13 @@
   --text: rgba(255,255,255,.92);
   --muted: rgba(255,255,255,.70);
   --green: #57ff93;
-  --green2:#2fe47a;
   --purple:#7c3cff;
   --shadow: 0 18px 60px rgba(0,0,0,.45);
+  --r: 18px;
 }
 
 *{box-sizing:border-box;}
 html,body{height:100%;}
-
 body{
   margin:0;
   font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
@@ -25,37 +24,16 @@ body{
   overflow:hidden;
 }
 
-/* Canvas */
-.wrap{
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding-top: 96px;
-}
-
-#game{
-  width:min(94vw, 520px);
-  height: min(78vh, 860px);
-  border-radius: 26px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.18);
-  box-shadow: var(--shadow);
-  touch-action:none;
-  user-select:none;
-}
-
-/* HUD */
+/* ===== HUD ===== */
 .hud{
   position:fixed;
   left:14px; right:14px; top:14px;
   display:flex;
   align-items:center;
   gap:10px;
-  z-index: 50;
-  pointer-events:none;
+  z-index: 20;
+  pointer-events:none; /* don’t block the game */
 }
-
 .icon-btn{
   width:46px; height:46px;
   border-radius: 14px;
@@ -64,12 +42,8 @@ body{
   box-shadow: var(--shadow);
   color:var(--text);
   font-size:18px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  pointer-events:auto;
+  pointer-events:auto; /* clickable */
 }
-.icon-btn.sm{ width:40px;height:40px;border-radius:12px;font-size:16px; }
 
 .xp{
   flex:1;
@@ -118,101 +92,70 @@ body{
 .bill{ font-size:18px; }
 .amt{ font-weight: 950; }
 
-/* Big green action bubble */
-.actionBubble{
+/* ===== TASK PILL ===== */
+.task{
   position:fixed;
-  left:50%;
-  top: 86px;
+  left:50%; top:82px;
   transform: translateX(-50%);
   display:flex;
   align-items:center;
   gap:10px;
   padding:12px 16px;
   border-radius: 18px;
-  border: 2px solid rgba(255,255,255,.22);
-  background: linear-gradient(180deg, rgba(87,255,147,.95), rgba(47,228,122,.92));
-  box-shadow: 0 18px 60px rgba(0,0,0,.45);
-  z-index: 55;
-  opacity:0;
-  transition: .18s ease;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(87,255,147,.18);
+  box-shadow: var(--shadow);
+  z-index: 20;
   pointer-events:none;
 }
-.actionBubble.show{ opacity:1; }
+.taskIcon{ font-size:18px; }
+.taskText{ font-weight: 950; letter-spacing:.2px; }
 
-.actionIcon{
-  width:34px;height:34px;
-  border-radius: 12px;
-  background: rgba(255,255,255,.22);
+/* ===== GAME WRAP / CANVAS ===== */
+.wrap{
+  height:100%;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:18px;
-}
-.actionText{
-  font-weight: 1000;
-  color: rgba(0,0,0,.82);
-  text-shadow: 0 2px 0 rgba(255,255,255,.35);
-  letter-spacing:.2px;
+  padding-top: 120px;
+  pointer-events:none; /* important: the canvas gets the touches */
 }
 
-/* Big arrow helper */
-.bigArrow{
-  position:fixed;
-  left:50%;
-  top: 160px;
-  transform: translateX(-50%);
-  font-size: 40px;
-  color: rgba(87,255,147,.95);
-  text-shadow: 0 10px 30px rgba(0,0,0,.55);
-  z-index: 54;
-  opacity:0;
-  transition: .18s ease;
-  pointer-events:none;
-  animation: bob 1.2s ease-in-out infinite;
-}
-.bigArrow.show{ opacity:1; }
-@keyframes bob{
-  0%,100%{ transform: translateX(-50%) translateY(0); }
-  50%{ transform: translateX(-50%) translateY(6px); }
-}
-
-/* Joystick */
-.joy{
-  position:fixed;
-  left: 18px;
-  bottom: 18px;
-  z-index: 60;
+canvas{
+  width:min(92vw, 430px);
+  height: min(78vh, 760px);
+  border-radius: 26px;
+  border:1px solid rgba(255,255,255,.12);
+  background:
+    radial-gradient(700px 380px at 30% 20%, rgba(124,60,255,.12), transparent 60%),
+    radial-gradient(700px 380px at 80% 70%, rgba(87,255,147,.10), transparent 60%),
+    rgba(0,0,0,.20);
+  box-shadow: var(--shadow);
+  touch-action:none;
   pointer-events:auto;
 }
-.joyBase{
-  width: 120px;
-  height: 120px;
-  border-radius: 999px;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(0,0,0,.18);
-  backdrop-filter: blur(8px);
-  box-shadow: var(--shadow);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  touch-action:none;
-}
-.joyKnob{
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
-  border:1px solid rgba(255,255,255,.18);
-  background: rgba(255,255,255,.12);
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
-  transform: translate(0,0);
+
+/* ===== BOTTOM HINT + TOAST ===== */
+.hint{
+  position:fixed;
+  left:50%;
+  transform: translateX(-50%);
+  bottom: 14px;
+  padding:10px 12px;
+  border-radius: 14px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.22);
+  color: var(--muted);
+  font-size: 12px;
+  z-index: 20;
+  pointer-events:none;
 }
 
-/* Toast */
 .toast{
   position:fixed;
   left:50%;
   transform: translateX(-50%);
-  bottom: 18px;
+  bottom: 60px;
   padding:10px 12px;
   border-radius: 14px;
   border:1px solid rgba(255,255,255,.12);
@@ -222,75 +165,88 @@ body{
   opacity:0;
   transition: .2s ease;
   pointer-events:none;
-  z-index: 70;
+  z-index: 25;
 }
 .toast.show{ opacity:1; }
 
-/* Settings panel */
+/* ===== SETTINGS PANEL ===== */
 .panel{
   position:fixed;
   inset:0;
-  background: rgba(0,0,0,.55);
   display:none;
   align-items:center;
   justify-content:center;
-  padding:18px;
-  z-index: 999;
+  padding:16px;
+  background: rgba(0,0,0,.45);
+  z-index: 40;
+  pointer-events:auto;
 }
 .panel.open{ display:flex; }
-
 .panelCard{
-  width:min(520px, 94vw);
+  width:min(520px, 92vw);
   border-radius: 22px;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(15,10,25,.72);
-  backdrop-filter: blur(10px);
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(10,10,14,.78);
   box-shadow: var(--shadow);
-  padding:14px;
+  padding:16px;
 }
-
 .panelHead{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  margin-bottom:10px;
+  padding-bottom:10px;
+  margin-bottom:8px;
+  border-bottom:1px solid rgba(255,255,255,.10);
 }
-
-.panelTitle{ font-weight: 950; font-size: 18px; letter-spacing: .2px; }
+.panelTitle{
+  font-size:20px;
+  font-weight:950;
+  letter-spacing:.2px;
+}
+.icon-btn.sm{
+  width:42px;
+  height:42px;
+  border-radius: 14px;
+}
 
 .panelRow{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
-  padding:10px 0;
-  border-top: 1px solid rgba(255,255,255,.10);
+  padding:12px 4px;
 }
-
-.panelLabel{ color: rgba(255,255,255,.82); font-weight: 800; }
-
-.panelNote{
-  margin-top:10px;
-  padding:10px 12px;
-  border-radius: 14px;
-  border:1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  color: rgba(255,255,255,.80);
-  font-size: 13px;
-  line-height: 1.45;
+.panelLabel{
+  font-weight:850;
+  opacity:.92;
 }
 
 .btn{
-  border:1px solid rgba(255,255,255,.16);
-  background: rgba(87,255,147,.20);
-  color: rgba(255,255,255,.92);
-  font-weight: 900;
-  border-radius: 14px;
-  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(87,255,147,.18);
+  color: var(--text);
+  padding:10px 14px;
+  border-radius: 16px;
+  font-weight:900;
+  box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  cursor:pointer;
 }
-.btn.ghost{ background: rgba(124,60,255,.18); }
+.btn.ghost{
+  background: rgba(124,60,255,.16);
+}
 
-/* On desktop, hide joystick */
-@media (hover:hover) and (pointer:fine){
-  .joy{ display:none; }
+.panelNote{
+  margin-top:12px;
+  padding:12px 12px;
+  border-radius: 16px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.25);
+  color: rgba(255,255,255,.78);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/* Safe areas */
+body{
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
