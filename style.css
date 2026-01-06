@@ -184,3 +184,82 @@ button, a, .btn{
     font-size: 13px;
   }
 }
+/* ==== MOBILE PLAYABILITY FIX (Pixel / Android / iOS) ==== */
+
+/* Stop the page from scrolling / rubber banding while playing */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #0b0715;
+  touch-action: none; /* critical: prevents browser gestures */
+}
+
+/* Your existing layout can stay, but wrap must not cause scroll */
+.wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+
+  /* leave room for HUD + hint */
+  top: calc(env(safe-area-inset-top) + 92px);
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* Canvas should fit the available space, never exceed it */
+#game {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+
+  display: block;
+  border-radius: 18px;
+
+  /* Important: make touches belong to the canvas, not the browser */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Keep HUD / hint fixed and clickable */
+.hud {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 10px;
+  right: 10px;
+  z-index: 20;
+}
+
+.task {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 72px);
+  left: 10px;
+  right: 10px;
+  z-index: 20;
+}
+
+.hint {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
+  z-index: 20;
+}
+
+/* Settings panel above everything */
+.panel {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
