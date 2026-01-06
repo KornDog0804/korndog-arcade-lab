@@ -263,3 +263,7 @@ html, body {
   inset: 0;
   z-index: 50;
 }
+/* Let the canvas receive touch; UI only clickable where needed */
+.wrap, #game { position: relative; z-index: 1; }
+.hud, .task, .hint, .toast { pointer-events: none; }
+.hud button, .task button, .panel, .panel * { pointer-events: auto; }
