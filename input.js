@@ -5,6 +5,20 @@
   class Input {
     constructor(canvas){
       this.canvas = canvas;
+      // Lock touch handling to the canvas only
+this.canvas.style.touchAction = "none";
+
+this.canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+}, { passive: false });
+
+this.canvas.addEventListener("touchmove", e => {
+  e.preventDefault();
+}, { passive: false });
+
+this.canvas.addEventListener("touchend", e => {
+  e.preventDefault();
+}, { passive: false });
 
       // "Drag finger to walk" state
       this.active = false;
