@@ -15,6 +15,11 @@
   --text: rgba(255,255,255,0.92);
   --muted: rgba(255,255,255,0.70);
 }
+canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 *{ box-sizing: border-box; }
 
