@@ -68,9 +68,10 @@
       </div>
     </div>
 
-    <!-- IMPORTANT: load helpers BEFORE game.js -->
-    <script src="boot.js"></script>
-    <script src="input.js"></script>
-    <script src="game.js"></script>
+    <!-- ✅ IMPORTANT: script order -->
+    <script src="input.js" defer></script>
+    <script src="sim.js" defer></script>
+    <script src="boot.js" defer></script>
+    <script src="game.js" defer></script>
   </body>
 </html>
