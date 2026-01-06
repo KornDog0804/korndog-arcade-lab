@@ -8,7 +8,7 @@ window.addEventListener("load", () => {
   canvas.style.touchAction = "none";
   canvas.style.webkitUserSelect = "none";
   canvas.style.userSelect = "none";
-
+  window.input = new Input(canvas);
   // Prevent page scroll ONLY when dragging on the canvas
   const stop = (e) => e.preventDefault();
 
