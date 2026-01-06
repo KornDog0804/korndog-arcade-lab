@@ -15,6 +15,9 @@
   --text: rgba(255,255,255,0.92);
   --muted: rgba(255,255,255,0.70);
 }
+#game {
+  touch-action: none; /* stops scroll/zoom stealing your drag */
+}
 canvas {
   touch-action: none;
   -webkit-user-select: none;
