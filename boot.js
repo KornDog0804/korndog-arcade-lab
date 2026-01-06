@@ -1,24 +1,22 @@
-function resizeCanvasToWrap() {
+// boot.js — mobile-safe boot (does NOT kill movement)
+
+window.addEventListener("load", () => {
   const canvas = document.getElementById("game");
-  const wrap = document.querySelector(".wrap");
-  if (!canvas || !wrap) return;
+  if (!canvas) return;
 
-  const rect = wrap.getBoundingClientRect();
-  const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap for performance
+  // Make sure the browser doesn't pan/zoom when you drag on the canvas
+  canvas.style.touchAction = "none";
+  canvas.style.webkitUserSelect = "none";
+  canvas.style.userSelect = "none";
 
-  canvas.width  = Math.floor(rect.width * dpr);
-  canvas.height = Math.floor(rect.height * dpr);
-}
+  // Prevent page scroll ONLY when dragging on the canvas
+  const stop = (e) => e.preventDefault();
 
-window.addEventListener("resize", resizeCanvasToWrap);
-window.addEventListener("orientationchange", resizeCanvasToWrap);
-resizeCanvasToWrap();
-/ boot.js — tiny “config loader” (no changes to game.js needed)
+  canvas.addEventListener("touchstart", stop, { passive: false });
+  canvas.addEventListener("touchmove", stop, { passive: false });
+  canvas.addEventListener("touchend", stop, { passive: false });
 
-// Change these anytime without touching game.js
-window.KD_CONFIG_URL = window.KD_CONFIG_URL || "game.config.json";
-window.KD_MAP_URL = window.KD_MAP_URL || "map.shop1.json";
-
-// Optional: quick switches you can edit later
-// window.KD_MAP_URL = "map.zelda.json";
-// window.KD_MAP_URL = "map.shop2.json";
+  // OPTIONAL: also prevent “rubber band” scroll bounce on the page
+  document.documentElement.style.overscrollBehavior = "none";
+  document.body.style.overscrollBehavior = "none";
+});
